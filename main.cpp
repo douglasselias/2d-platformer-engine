@@ -1,17 +1,19 @@
 #include "raylib.h"
 
-int main(void) {
-  const int screenWidth = 800;
-  const int screenHeight = 450;
+#include "std/types.cpp"
+#include "std/vector_overload.cpp"
+#include "std/log.cpp"
 
-  InitWindow(screenWidth, screenHeight, "raylib [core] example - basic window");
+#include "src/screen.cpp"
 
-  SetTargetFPS(60);
+s32 main(void) {
+  init_screen();
 
   while (!WindowShouldClose()) {
     BeginDrawing();
       ClearBackground(RAYWHITE);
-      DrawText("Congrats! You created your first window!", 190, 200, 20, LIGHTGRAY);
+      // DrawText("Congrats! You created your first window!", 190, 200, 20, BLACK);
+      draw_text_centered("Congrats! You created your first window!", 190, BLACK);
     EndDrawing();
   }
 
