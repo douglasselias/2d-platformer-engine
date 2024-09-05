@@ -1,4 +1,4 @@
-const char *game_title = "Raylib App";
+const char *game_title = "Game";
 const u16 screen_width  = 1280;
 const u16 screen_height = 720;
 const u16 half_screen_width  = screen_width  / 2;
@@ -10,6 +10,8 @@ void init_screen() {
   SetTraceLogLevel(LOG_WARNING);
   InitWindow(screen_width, screen_height, game_title);
   // SetWindowState(FLAG_WINDOW_UNDECORATED);
+  Image icon = LoadImage("../icons/game16.png");
+  SetWindowIcon(icon);
   SetTargetFPS(60);
   InitAudioDevice();
 }

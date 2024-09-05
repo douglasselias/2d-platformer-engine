@@ -9,6 +9,7 @@ if %ERRORLEVEL% neq 0 (
 cls
 
 rmdir /S /Q .\build
+@REM del icons\resource.res
 mkdir build
 pushd .\build
 
@@ -17,20 +18,23 @@ set basic_optimizations=/Oi /fp:fast /fp:except- /jumptablerdata /kernel /GS- /G
 set warnings=/RTCc /WX /W4
 set base_flags=%better_output% %basic_optimizations% %warnings% /cgthreads8 /MD
 
-@REM 
 set debug_flags=/Z7 /Zo
 set release_flags=/GL /O2
 
-@REM /c
+set vendor_libs="../vendor/raylib.lib"
+set system_libs=user32.lib shell32.lib gdi32.lib winmm.lib opengl32.lib
 
-set vendor_libs=/I"../vendor" "../vendor/raylib.lib"
-set libs=user32.lib shell32.lib gdi32.lib winmm.lib opengl32.lib
-
-cl %base_flags% %debug_flags% ..\main.cpp %vendor_libs%  %libs% 
+cl %base_flags% %debug_flags% /c ..\main.cpp /I"../vendor"
+@REM %vendor_libs% %system_libs% 
 @REM /NODEFAULTLIB
 
 echo Build finished
 
-main.exe
+rc /nologo /r ..\icons\resource.rc
+move ..\icons\resource.res ..\build
+
+link /nologo %vendor_libs% %system_libs% main.obj resource.res -out:game.exe
+
+game.exe
 
 popd

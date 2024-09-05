@@ -6,24 +6,30 @@
 
 #include "src/screen.cpp"
 
-#include "font.cpp"
+// #include "font.cpp"
 
-s32 main(void) {
+Font load_font() {
+  s32 count;
+  s32* codepoints = LoadCodepoints("qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM!@#$%&().;>:<,[]{}/我是猫", &count);
+  Font font = LoadFontEx("../fonts/noto_serif_chinese_regular.ttf", 700, codepoints, count);
+  SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
+  return font;
+}
+
+s32 main() {
   init_screen();
 
   const char* font_generated_file = "../font.cpp";
-  Font font;
+  Font font = load_font();
 
   if(!FileExists(font_generated_file)) {
-    font = LoadFont_Font();
-  } else {
+    // font = LoadFont_Font();
+  } 
+  // else {
+  {
     // font = LoadFont("../fonts/ibm_plex_mono.ttf");
-    s32 count;
-    s32* codepoints = LoadCodepoints("qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM!@#$%&().;>:<,[]{}/我是猫", &count);
     // font = LoadFontEx("../fonts/ibm_plex_mono.ttf", 1000, codepoints, count);
     // font = LoadFontEx("../fonts/noto_sans_chinese_regular.ttf", 1000, codepoints, count);
-    font = LoadFontEx("../fonts/noto_serif_chinese_regular.ttf", 1000, codepoints, count);
-    SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
     // bool success = ExportFontAsCode(font, font_generated_file);
     // UnloadCodepoints(codepoints);
     // if(!success) return -1;
