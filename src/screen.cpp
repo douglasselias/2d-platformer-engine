@@ -6,8 +6,10 @@ const u16 half_screen_height = screen_height / 2;
 const Vector2 screen_center = {half_screen_width, half_screen_height};
 
 void init_screen() {
+  SetConfigFlags(FLAG_WINDOW_RESIZABLE);
   SetTraceLogLevel(LOG_WARNING);
   InitWindow(screen_width, screen_height, game_title);
+  // SetWindowState(FLAG_WINDOW_UNDECORATED);
   SetTargetFPS(60);
   InitAudioDevice();
 }

@@ -6,14 +6,55 @@
 
 #include "src/screen.cpp"
 
+#include "font.cpp"
+
 s32 main(void) {
   init_screen();
 
+  const char* font_generated_file = "../font.cpp";
+  Font font;
+
+  if(!FileExists(font_generated_file)) {
+    font = LoadFont_Font();
+  } else {
+    // font = LoadFont("../fonts/ibm_plex_mono.ttf");
+    s32 count;
+    s32* codepoints = LoadCodepoints("qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM!@#$%&().;>:<,[]{}/我是猫", &count);
+    // font = LoadFontEx("../fonts/ibm_plex_mono.ttf", 1000, codepoints, count);
+    // font = LoadFontEx("../fonts/noto_sans_chinese_regular.ttf", 1000, codepoints, count);
+    font = LoadFontEx("../fonts/noto_serif_chinese_regular.ttf", 1000, codepoints, count);
+    SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
+    // bool success = ExportFontAsCode(font, font_generated_file);
+    // UnloadCodepoints(codepoints);
+    // if(!success) return -1;
+  }
+
+  s32 display = GetCurrentMonitor();
+  bool is_fullscreen = false;
+
   while (!WindowShouldClose()) {
+    if(IsKeyPressed(KEY_F)) {
+      // log("Hello");
+      // printf("Hi");
+      if (is_fullscreen) {
+        // if we are full screen, then go back to the windowed size
+        SetWindowPosition(GetMonitorWidth(display)/2-screen_width/2, GetMonitorHeight(display)/2-screen_height/2);
+        SetWindowSize(screen_width, screen_height);
+        ClearWindowState(FLAG_WINDOW_UNDECORATED);
+      } else {
+        // if we are not full screen, set the window size to match the monitor we are on
+        SetWindowPosition(0,0);
+        SetWindowSize(GetMonitorWidth(display), GetMonitorHeight(display));
+        SetWindowState(FLAG_WINDOW_UNDECORATED);
+      }
+      // ToggleFullscreen();
+      is_fullscreen = !is_fullscreen;
+    }
+
     BeginDrawing();
       ClearBackground(RAYWHITE);
-      // DrawText("Congrats! You created your first window!", 190, 200, 20, BLACK);
-      draw_text_centered("Congrats! You created your first window!", 190, BLACK);
+      DrawTextEx(font, "我是猫 Congrats! You created your first window!", {10,screen_center.y}, 250, 4, BLACK);
+      // draw_text_centered("Congrats! You created your first window!", 190, BLACK);
     EndDrawing();
   }
 
