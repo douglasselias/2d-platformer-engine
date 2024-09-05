@@ -9,7 +9,6 @@ if %ERRORLEVEL% neq 0 (
 cls
 
 rmdir /S /Q .\build
-@REM del icons\resource.res
 mkdir build
 pushd .\build
 
@@ -25,10 +24,7 @@ set vendor_libs="../vendor/raylib.lib"
 set system_libs=user32.lib shell32.lib gdi32.lib winmm.lib opengl32.lib
 
 cl %base_flags% %debug_flags% /c ..\main.cpp /I"../vendor"
-@REM %vendor_libs% %system_libs% 
 @REM /NODEFAULTLIB
-
-echo Build finished
 
 rc /nologo /r ..\icons\resource.rc
 move ..\icons\resource.res ..\build
