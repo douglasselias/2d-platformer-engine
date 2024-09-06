@@ -1,3 +1,6 @@
+#include "stdio.h"
+#include "time.h"
+
 #include "raylib.h"
 #include "raymath.h"
 
@@ -42,11 +45,26 @@ s32 main() {
   Vector2 s = {screen_width, screen_height};
   // log("If float equal", s == s);
 
-  // log("S before", s++);
-  log("S after", s);
-  s32 a = (s32)s.x;
-  s32 b = (s32)s.y;
-  log("Max", (s32)mod(10, 3));
+  log("Hello new log");
+  log("Key?", "Value!");
+  log("A vector log", s);
+  f64 valuef64 = 100;
+  log("A f64 value", valuef64);
+  log("A f32 value", s.x);
+
+  log("A int value", 1000);
+  // s32 a = (s32)s.x;
+  // s32 b = (s32)s.y;
+  // log("Max", (s32)mod(10, 3));
+
+  Camera camera = {};
+  camera.position = { 0, 0, -10 };
+  camera.target = { 0, 0, 0 };
+  camera.up = { 0, 1, 0 };
+  camera.fovy = 45;
+  camera.projection = CAMERA_PERSPECTIVE;
+
+  Vector3 cubePosition = { 0.0f, 0.0f, 0.0f };
 
   while (!WindowShouldClose()) {
     if(IsKeyPressed(KEY_F)) {
@@ -68,7 +86,12 @@ s32 main() {
     }
 
     BeginDrawing();
-      ClearBackground(RAYWHITE);
+    ClearBackground(RAYWHITE);
+
+      BeginMode3D(camera);
+        DrawCube(cubePosition, 2.0f, 2.0f, 2.0f, RED);
+      EndMode3D();
+
       DrawTextEx(font, "我是猫 Congrats! You created your first window!", {10,screen_center.y}, 250, 4, BLACK);
       // draw_text_centered("Congrats! You created your first window!", 190, BLACK);
     EndDrawing();

@@ -13,7 +13,9 @@ void init_screen() {
   Image icon = LoadImage("../icons/game16.png");
   SetWindowIcon(icon);
   SetTargetFPS(60);
+
   InitAudioDevice();
+  SetRandomSeed((u32)time(null));
 }
 
 void draw_texture(Texture2D texture, Vector2 position, f32 scale = 1, Color tint = WHITE) {
