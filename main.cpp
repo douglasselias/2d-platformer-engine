@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "raymath.h"
 
 #include "std/types.cpp"
 #include "std/vector_overload.cpp"
@@ -37,6 +38,11 @@ s32 main() {
 
   s32 display = GetCurrentMonitor();
   bool is_fullscreen = false;
+  Vector2 s = {screen_width, screen_height};
+  // log("If float equal", s == s);
+
+  log("S before", s++);
+  log("S after", s);
 
   while (!WindowShouldClose()) {
     if(IsKeyPressed(KEY_F)) {
