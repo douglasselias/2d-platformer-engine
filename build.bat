@@ -15,10 +15,8 @@ pushd .\build
 set better_output=/nologo /diagnostics:caret /FC
 set basic_optimizations=/Oi /fp:fast /fp:except- /jumptablerdata /kernel /GS- /Gs9999999
 set warnings=/WX /W4
-set disable_stupid_errors=/wd4189
+set disable_stupid_errors=/wd4189 /wd4700 /wd4100
 set compiler_base_flags=%better_output% %basic_optimizations% %warnings% %disable_stupid_errors% /cgthreads8 /MD
-
-@REM Add -STACK:0x100000,0x100000, -GS- and -Gs9999999 to our CommonCompilerFlags
 
 set compiler_debug_flags=/Z7 /Zo /RTCc
 set compiler_release_flags=/Gw /GL /O2
@@ -26,14 +24,13 @@ set compiler_release_flags=/Gw /GL /O2
 set vendor_libs="../vendor/raylib.lib"
 set system_libs=user32.lib shell32.lib gdi32.lib winmm.lib opengl32.lib
 
-cl %compiler_base_flags% %compiler_release_flags% /c ..\main.cpp /I"../vendor"
-@REM /NODEFAULTLIB
+cl %compiler_base_flags% %compiler_debug_flags% /c ..\main.cpp /I"../vendor"
 
 rc /nologo /r ..\icons\resource.rc
 move ..\icons\resource.res ..\build >nul
 
-
-set linker_debug_flags=/debug /incremental:no /cgthreads:8 /time /WX
+set linker_debug_flags=/debug /incremental:no /cgthreads:8 /time /WX /STACK:0x100000,0x100000
+@REM -STACK:0x100000,0x100000
 @REM /kernel
 @REM /driver
 @REM set linker_release_flags=
