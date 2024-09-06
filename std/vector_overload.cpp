@@ -95,10 +95,3 @@ bool operator ==(const Vector2 &lhs, const Vector2 &rhs) {
 bool operator ==(const Vector3 &lhs, const Vector3 &rhs) {
   return Vector3Equals(lhs, rhs);
 }
-
-Vector2 &operator ++(Vector2 &lhs) {
-  lhs.x+=1;
-  lhs.y+=1;
-  // lhs.z++;
-  return lhs;
-}

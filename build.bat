@@ -15,7 +15,8 @@ pushd .\build
 set better_output=/nologo /diagnostics:caret /FC
 set basic_optimizations=/Oi /fp:fast /fp:except- /jumptablerdata /kernel /GS- /Gs9999999
 set warnings=/WX /W4
-set compiler_base_flags=%better_output% %basic_optimizations% %warnings% /cgthreads8 /MD
+set disable_stupid_errors=/wd4189
+set compiler_base_flags=%better_output% %basic_optimizations% %warnings% %disable_stupid_errors% /cgthreads8 /MD
 
 @REM Add -STACK:0x100000,0x100000, -GS- and -Gs9999999 to our CommonCompilerFlags
 

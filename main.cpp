@@ -4,6 +4,7 @@
 #include "std/types.cpp"
 #include "std/vector_overload.cpp"
 #include "std/log.cpp"
+#include "std/math.cpp"
 
 #include "src/screen.cpp"
 
@@ -41,8 +42,11 @@ s32 main() {
   Vector2 s = {screen_width, screen_height};
   // log("If float equal", s == s);
 
-  log("S before", s++);
+  // log("S before", s++);
   log("S after", s);
+  s32 a = (s32)s.x;
+  s32 b = (s32)s.y;
+  log("Max", (s32)mod(10, 3));
 
   while (!WindowShouldClose()) {
     if(IsKeyPressed(KEY_F)) {
