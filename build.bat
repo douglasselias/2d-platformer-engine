@@ -15,7 +15,8 @@ pushd .\build
 set better_output=/nologo /diagnostics:caret /FC
 set basic_optimizations=/Oi /fp:fast /fp:except- /jumptablerdata /kernel /GS- /Gs9999999
 set warnings=/WX /W4
-set disable_stupid_errors=/wd4189 /wd4700 /wd4100
+@REM maybe remove this flag later C4996 /wd4996
+set disable_stupid_errors=/wd4189 /wd4700 /wd4100 /wd4996
 set compiler_base_flags=%better_output% %basic_optimizations% %warnings% %disable_stupid_errors% /cgthreads8 /MD
 
 set compiler_debug_flags=/Z7 /Zo /RTCc

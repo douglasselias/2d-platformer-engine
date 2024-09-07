@@ -1,6 +1,6 @@
 #include "stdio.h"
-#include "stdlib.h"
 #include "time.h"
+#include "string.h"
 
 #include "raylib.h"
 #include "raymath.h"
@@ -13,9 +13,10 @@
 
 #include "src/screen.cpp"
 
-// #include "font.cpp"
+#if 0
+#include "music.cpp"
+#endif
 
-typedef long long s64;
 Font load_font() {
   s32 count;
   s32* codepoints = LoadCodepoints("qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM!@#$%&().;>:<,[]{}/我是猫", &count);
@@ -24,84 +25,120 @@ Font load_font() {
   return font;
 }
 
-unsigned char* read_file_binary(const char *filename, s32 *size) {
-  FILE *file;
-  errno_t err = fopen_s(&file, filename, "rb");
-  if(err != 0 || file == NULL) {
-    perror("Error opening file");
-    return NULL;
+// struct HashTable {
+//   u64 count;
+//   u64 max_size;
+//   u8 *table[4096];
+// };
+
+// HashTable *create_ht(Arena *arena, u64 size) {
+//   HashTable *ht = alloc_arena(arena, sizeof(HashTable));
+//   ht->count = 0;
+//   ht->max_size = size;
+//   ht->table = alloc_arena(arena, size);
+//   return ht;
+// }
+
+u64 hash_key(const char *key) {
+  u64 hash = 0;
+
+  while(*key) {
+    hash += *key;
+    key++;
   }
 
-  // Get the file size
-  if (fseek(file, 0, SEEK_END) != 0) {
-    perror("Error seeking to end of file");
-    fclose(file);
-    return NULL;
-  }
-  long file_size = ftell(file);
-  if (file_size < 0) {
-    perror("Error getting file size");
-    fclose(file);
-    return NULL;
-  }
-
-  if (fseek(file, 0, SEEK_SET) != 0) {
-    perror("Error seeking to start of file");
-    fclose(file);
-    return NULL;
-  }
-
-  if(file_size < 0) {
-    perror("Error getting file size");
-    fclose(file);
-    return NULL;
-  }
-
-  unsigned char *buffer = (unsigned char *)malloc(file_size);
-
-  size_t bytes_read = fread(buffer, 1, file_size, file);
-  if(bytes_read != (size_t)file_size) {
-    perror("Error reading file");
-    free(buffer);
-    fclose(file);
-    return NULL;
-  }
-
-  fclose(file);
-  // *size = file_size;
-  return buffer;
+  return hash % 4096;
 }
 
+// void insert_ht(HashTable *ht, u8 *key, u8 value) {
+//   u64 hash = hash_key(key);
+//   printf("Hash: %ld\n", hash);
+//   ht->table[hash] = value;
+//   ht->count++;
+// }
+
+// u8 get_ht(HashTable *ht, u8 *key) {
+//   u64 hash = hash_key(key);
+//   return ht->table[hash];
+// }
+
+char *english_texts[4096] = {};
+char *chinese_texts[4096] = {};
+
+void i18n_init() {
+  puts("--- Init ---");
+  char *csv = LoadFileText("../i18n.csv");
+  // puts(csv);
+  for(char *line = strtok(csv, "\n"); line != null; line = strtok(null, "\n")) {
+    char key[200];
+    char en[200];
+    char cn[200];
+    sscanf(line, "%[^,],%[^,],%[^\n]", key, en, cn);
+    // printf("%s - %s - %s\n", key, en, cn);
+    u64 key_hash = hash_key(key);
+    english_texts[key_hash] = strdup(en);
+    chinese_texts[key_hash] = strdup(cn);
+
+    // for(char *text = strtok(line, ","); text != null; text = strtok(null, ",")) {
+    //   printf("\t%s", text);
+    //   texts[i] = strdupa(text);
+    //   i++;
+    // }
+    puts("---");
+  }
+}
+
+char* i18n(u64 dictionary_index, const char* key) {
+  switch(dictionary_index) {
+    case 0: return english_texts[hash_key(key)];
+    case 1: return chinese_texts[hash_key(key)];
+  }
+  return "";
+}
 
 s32 main() {
   init_screen();
 
+  i18n_init();
+  u64 dictionary_index = 0;
+
   const char* font_generated_file = "../font.cpp";
   Font font = load_font();
 
-  s32 *bin_size;
-  unsigned char* music_bin = read_file_binary("../musics/battle.wav", bin_size);
-  // unsigned char* music_bin = LoadFileData("../musics/battle.wav", bin_size);
+  s32 *bin_size = (s32*)MemAlloc(sizeof(s32));
+  #if 0
+  unsigned char* music_bin = LoadFileData("../musics/battle.wav", bin_size);
+  ExportDataAsCode(music_bin, *bin_size, "../music.cpp");
+  #endif
 
   s32 display = GetCurrentMonitor();
   bool is_fullscreen = false;
 
   Camera camera = {};
-  camera.position = { 0, 0, -10 };
-  camera.target = { 0, 0, 0 };
-  camera.up = { 0, 1, 0 };
+  camera.position = {0, 0, -10};
+  camera.target = {0, 0, 0};
+  camera.up = {0, 1, 0};
   camera.fovy = 45;
   camera.projection = CAMERA_PERSPECTIVE;
 
-  Vector3 cubePosition = { 0.0f, 0.0f, 0.0f };
+  Vector3 cube_position = {0, 0, 0};
 
-  // Music music = LoadMusicStream("../musics/battle.wav");
+  #if 1
+  Music music = LoadMusicStream("../musics/battle.wav");
+  #elif 0
   Music music = LoadMusicStreamFromMemory(".wav", music_bin, *bin_size);
+  #else
+  Music music = LoadMusicStreamFromMemory(".wav", MUSIC_DATA, MUSIC_DATA_SIZE);
+  #endif
   PlayMusicStream(music);
 
   while (!WindowShouldClose()) {
     f32 dt = GetFrameTime();
     UpdateMusicStream(music);
+
+    if(IsKeyPressed(KEY_SPACE)) {
+      dictionary_index = dictionary_index == 0 ? 1 : 0;
+    }
     
     if(IsKeyPressed(KEY_F)) {
       // log("Hello");
@@ -125,11 +162,13 @@ s32 main() {
     ClearBackground(RAYWHITE);
 
       BeginMode3D(camera);
-        // DrawCube(cubePosition, 2.0f, 2.0f, 2.0f, RED);
-        DrawTriangle3D(cubePosition, {0, 10, cubePosition.z}, {5, 10, cubePosition.z}, GREEN);
+        // DrawCube(cube_position, 2.0f, 2.0f, 2.0f, RED);
+        DrawTriangle3D(cube_position, {0, 10, cube_position.z}, {5, 10, cube_position.z}, GREEN);
       EndMode3D();
 
-      DrawTextEx(font, "我是猫 Congrats! You created your first window!", {10,screen_center.y}, 250, 4, BLACK);
+      // DrawTextEx(font, "我是猫 Congrats! You created your first window!", {10,screen_center.y}, 250, 4, BLACK);
+      DrawTextEx(font, i18n(dictionary_index, "hello_world"), {10,screen_center.y}, 250, 4, BLACK);
+      // DrawTextEx(font, i18n("main_menu_play"), {10,screen_center.y}, 250, 4, BLACK);
       // draw_text_centered("Congrats! You created your first window!", 190, BLACK);
 
       // draw_circle({screen_center, 100}, GRAY);
