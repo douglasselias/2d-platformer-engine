@@ -1,6 +1,9 @@
 #include "stdio.h"
+#include "stdlib.h"
 #include "time.h"
 #include "string.h"
+#include "wchar.h"
+#include "locale.h"
 
 #include "raylib.h"
 #include "raymath.h"
@@ -17,14 +20,6 @@
 #include "music.cpp"
 #endif
 
-Font load_font() {
-  s32 count;
-  s32* codepoints = LoadCodepoints("qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM!@#$%&().;>:<,[]{}/我是猫", &count);
-  Font font = LoadFontEx("../fonts/noto_serif_chinese_regular.ttf", 700, codepoints, count);
-  SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
-  return font;
-}
-
 // struct HashTable {
 //   u64 count;
 //   u64 max_size;
@@ -38,6 +33,8 @@ Font load_font() {
 //   ht->table = alloc_arena(arena, size);
 //   return ht;
 // }
+
+#define HASH_TABLE_SIZE 4096
 
 u64 hash_key(const char *key) {
   u64 hash = 0;
@@ -62,8 +59,47 @@ u64 hash_key(const char *key) {
 //   return ht->table[hash];
 // }
 
+
+
+// char* append_chinese_char(char* str, char* c) {
+//   u64 total_len = strlen(str) + strlen(c) + 1;
+  
+//   strcpy(str);
+//   return result;
+// }
+
+char *chinese_chars[4096] = {};
+
 char *english_texts[4096] = {};
 char *chinese_texts[4096] = {};
+
+Font load_font() {
+  u64 total_chars = 0;
+  for(s16 i = 0; i < 4096; i++) {
+    if(chinese_chars[i]) {
+      total_chars++;
+    }
+  }
+  // s32* codepoints = LoadCodepoints("qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM!@#$%&().;>:<,[]{}/我是猫", &count);
+  char* alphabet = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM!@#$%&().;>:<,[]{}/";
+  u64 alphabet_length = strlen(alphabet);
+  char* all_codepoints = (char*)MemAlloc(alphabet_length * sizeof(char) + sizeof(char) * 3 * total_chars);
+  // char* all_codepoints = (char*)malloc(sizeof(char*)*1000);
+
+  strcpy(all_codepoints, alphabet);
+   for(s16 i = 0; i < 4096; i++) {
+    if(chinese_chars[i]) {
+      strcat(all_codepoints, chinese_chars[i]);
+    }
+  }
+
+  s32 count;
+  s32* codepoints = LoadCodepoints(all_codepoints, &count);
+  puts(all_codepoints);
+  Font font = LoadFontEx("../fonts/noto_serif_chinese_regular.ttf", 700, codepoints, count);
+  SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
+  return font;
+}
 
 void i18n_init() {
   puts("--- Init ---");
@@ -74,16 +110,25 @@ void i18n_init() {
     char en[200];
     char cn[200];
     sscanf(line, "%[^,],%[^,],%[^\n]", key, en, cn);
-    // printf("%s - %s - %s\n", key, en, cn);
+    printf("%s - %s - %s, %zd\n", key, en, cn, strlen(cn));
     u64 key_hash = hash_key(key);
     english_texts[key_hash] = strdup(en);
     chinese_texts[key_hash] = strdup(cn);
 
-    // for(char *text = strtok(line, ","); text != null; text = strtok(null, ",")) {
-    //   printf("\t%s", text);
-    //   texts[i] = strdupa(text);
-    //   i++;
-    // }
+    u8 index = 0;
+    char current_char[3] = {};
+    u64 len = strlen(cn) / 3;
+    while(index < len) {
+      strncpy(current_char, cn + 3 * index, 3);
+      chinese_chars[hash_key(current_char)] = strdup(current_char);
+      index++;
+    }
+
+    // wchar_t text_wchar[30];
+    // u64 length = 0;
+    // mbstowcs_s(&length, text_wchar, current_char, length);
+    // setlocale(LC_ALL, "china");
+    // wprintf (L"%s \n", text_wchar);
     puts("---");
   }
 }
@@ -101,6 +146,12 @@ s32 main() {
 
   i18n_init();
   u64 dictionary_index = 0;
+
+  for(s16 i = 0; i < 4096; i++) {
+    if(chinese_chars[i]) {
+      printf("%d:%s\n", i, chinese_chars[i]);
+    }
+  }
 
   const char* font_generated_file = "../font.cpp";
   Font font = load_font();
