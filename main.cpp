@@ -81,7 +81,7 @@ Font load_font() {
     }
   }
   // s32* codepoints = LoadCodepoints("qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM!@#$%&().;>:<,[]{}/我是猫", &count);
-  char* alphabet = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM!@#$%&().;>:<,[]{}/";
+  char* alphabet = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM?!@#$%&().;>:<,[]{}/'";
   u64 alphabet_length = strlen(alphabet);
   char* all_codepoints = (char*)MemAlloc(alphabet_length * sizeof(char) + sizeof(char) * 3 * total_chars);
   // char* all_codepoints = (char*)malloc(sizeof(char*)*1000);
@@ -96,7 +96,7 @@ Font load_font() {
   s32 count;
   s32* codepoints = LoadCodepoints(all_codepoints, &count);
   puts(all_codepoints);
-  Font font = LoadFontEx("../fonts/noto_serif_chinese_regular.ttf", 700, codepoints, count);
+  Font font = LoadFontEx("../fonts/noto_serif_chinese_regular.ttf", 100, codepoints, count);
   SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
   return font;
 }
@@ -145,7 +145,7 @@ s32 main() {
   init_screen();
 
   i18n_init();
-  u64 dictionary_index = 0;
+  u64 dictionary_index = 1;
 
   for(s16 i = 0; i < 4096; i++) {
     if(chinese_chars[i]) {
@@ -172,6 +172,16 @@ s32 main() {
   camera.fovy = 45;
   camera.projection = CAMERA_PERSPECTIVE;
 
+  Camera2D camera2D = {};
+  // camera2D.offset = {screen_width/2, screen_height/2};
+  camera2D.offset = {};
+  camera2D.target = {0, 0};
+  camera2D.rotation = 0;
+  camera2D.zoom = 1;
+  // camera2D. = {0, 1, 0};
+  // camera2D.fovy = 45;
+  // camera2D.projection = CAMERA_PERSPECTIVE;
+
   Vector3 cube_position = {0, 0, 0};
 
   #if 1
@@ -183,17 +193,64 @@ s32 main() {
   #endif
   PlayMusicStream(music);
 
+  Texture2D tilemap = LoadTexture("../gfx/monochrome_tilemap_packed.png");
+  f32 tilemap_scale = 2;
+  s32 mouse_cursor = 0;
+  #define PAN_CURSOR 9
+
+  Vector2 last_pan_position = {};
+  Vector2 current_pan_delta = {};
+
   while (!WindowShouldClose()) {
     f32 dt = GetFrameTime();
     UpdateMusicStream(music);
 
+    f32 wheel_delta = GetMouseWheelMove();
+    if(!FloatEquals(wheel_delta, 0)) {
+      // wheel_delta = Clamp(wheel_delta, -1, 1);
+      tilemap_scale = Lerp(tilemap_scale,tilemap_scale + 2 * (s64)wheel_delta, 0.1);
+      tilemap_scale = Clamp(tilemap_scale, 2, 6);
+      // log("DT: %.2f", wheel_delta);
+    }
+
+    // if(IsKeyPressed(KEY_D))
+    //   SetMouseCursor(++mouse_cursor);
+    // if(IsKeyPressed(KEY_A))
+    //   SetMouseCursor(--mouse_cursor);
+
+    // log("Mouse: %d", mouse_cursor);
+
+    Vector2 mouse_position = GetMousePosition();
     if(IsKeyPressed(KEY_SPACE)) {
-      dictionary_index = dictionary_index == 0 ? 1 : 0;
+      // dictionary_index = dictionary_index == 0 ? 1 : 0;
+      SetMouseCursor(PAN_CURSOR);
+      last_pan_position = camera2D.target + mouse_position;
+      // log("Last pan pos", last_pan_position);
+    }
+
+    if(IsKeyReleased(KEY_SPACE)) {
+      SetMouseCursor(0);
+      last_pan_position = {};
+      current_pan_delta = {};
+    }
+
+    if(IsKeyDown(KEY_SPACE)) {
+      // SetMouseCursor(PAN_CURSOR);
+      current_pan_delta = last_pan_position - mouse_position;
+      // log("delta pan", current_pan_delta);
+      // last_pan_position = mouse_position;
+
+      // camera.position = {current_pan_delta.x, current_pan_delta.y, 0};
+      // error C2088: o operador integrado "-" não pode ser aplicado a um operando do tipo "Vector2"
+      // camera2D.target = -1 * current_pan_delta; todo: this doesn't work
+      // Vector2 world_position = GetScreenToWorld2D(current_pan_delta * -1, camera2D);
+      // camera2D.target = world_position - current_pan_delta;
+      camera2D.target = current_pan_delta;
+
+      // log("world position", world_position);
     }
     
     if(IsKeyPressed(KEY_F)) {
-      // log("Hello");
-      // printf("Hi");
       if (is_fullscreen) {
         // if we are full screen, then go back to the windowed size
         SetWindowPosition(GetMonitorWidth(display)/2-screen_width/2, GetMonitorHeight(display)/2-screen_height/2);
@@ -212,13 +269,21 @@ s32 main() {
     BeginDrawing();
     ClearBackground(RAYWHITE);
 
-      BeginMode3D(camera);
-        // DrawCube(cube_position, 2.0f, 2.0f, 2.0f, RED);
-        DrawTriangle3D(cube_position, {0, 10, cube_position.z}, {5, 10, cube_position.z}, GREEN);
-      EndMode3D();
+      // BeginMode3D(camera);
+      //   // DrawCube(cube_position, 2.0f, 2.0f, 2.0f, RED);
+      //   // DrawTriangle3D(cube_position, {0, 10, cube_position.z}, {5, 10, cube_position.z}, GREEN);
+      // EndMode3D();
+
+
+      BeginMode2D(camera2D);
+        // DrawTexturePro(tilemap, {0,0,(f32)tilemap.width,(f32)tilemap.height}, {0,0,16*70,16*70}, {0,0}, 0, WHITE);
+        DrawTextureEx(tilemap, {0,0}, 0, tilemap_scale, WHITE);
+      EndMode2D();
+
+      // DrawTextEx(font, i18n(dictionary_index, "question"), {10,screen_center.y}, 70, 4, BLACK);
+
 
       // DrawTextEx(font, "我是猫 Congrats! You created your first window!", {10,screen_center.y}, 250, 4, BLACK);
-      DrawTextEx(font, i18n(dictionary_index, "hello_world"), {10,screen_center.y}, 250, 4, BLACK);
       // DrawTextEx(font, i18n("main_menu_play"), {10,screen_center.y}, 250, 4, BLACK);
       // draw_text_centered("Congrats! You created your first window!", 190, BLACK);
 

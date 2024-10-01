@@ -26,6 +26,7 @@ set vendor_libs="../vendor/raylib.lib"
 set system_libs=user32.lib shell32.lib gdi32.lib winmm.lib opengl32.lib
 
 cl %compiler_base_flags% %compiler_debug_flags% /c ..\main.cpp /I"../vendor"
+@REM -D_CRT_SECURE_NO_WARNINGS
 
 rc /nologo /r ..\icons\resource.rc
 move ..\icons\resource.res ..\build >nul
