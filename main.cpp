@@ -201,9 +201,11 @@ s32 main() {
   Vector2 last_pan_position = {};
   Vector2 current_pan_delta = {};
 
+  #define TILE_SIZE 16
+
   while (!WindowShouldClose()) {
     f32 dt = GetFrameTime();
-    UpdateMusicStream(music);
+    // UpdateMusicStream(music);
 
     f32 wheel_delta = GetMouseWheelMove();
     if(!FloatEquals(wheel_delta, 0)) {
@@ -278,6 +280,13 @@ s32 main() {
       BeginMode2D(camera2D);
         // DrawTexturePro(tilemap, {0,0,(f32)tilemap.width,(f32)tilemap.height}, {0,0,16*70,16*70}, {0,0}, 0, WHITE);
         DrawTextureEx(tilemap, {0,0}, 0, tilemap_scale, WHITE);
+
+        for(u32 col = 0; col < (u32)(tilemap.width * tilemap_scale / TILE_SIZE); col++) {
+          DrawLineV({(f32)TILE_SIZE * tilemap_scale * col, 0}, {(f32)TILE_SIZE * tilemap_scale * col, (f32)tilemap.height * tilemap_scale}, WHITE);
+        }
+        for(u32 row = 0; row < (u32)(tilemap.height * tilemap_scale / TILE_SIZE); row++) {
+          DrawLineV({0, (f32)TILE_SIZE * tilemap_scale * row}, {(f32)tilemap.width * tilemap_scale, (f32)TILE_SIZE * tilemap_scale * row}, WHITE);
+        }
       EndMode2D();
 
       // DrawTextEx(font, i18n(dictionary_index, "question"), {10,screen_center.y}, 70, 4, BLACK);
