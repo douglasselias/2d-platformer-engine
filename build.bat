@@ -17,7 +17,7 @@ set basic_optimizations=/Oi /fp:fast /fp:except- /jumptablerdata /kernel /GS- /G
 set warnings=/WX /W4
 @REM maybe remove this flag later C4996 /wd4996 - /wd4244
 set disable_stupid_errors=/wd4189 /wd4700 /wd4100 /wd4996 /wd4244
-set compiler_base_flags=%better_output% %basic_optimizations% %warnings% %disable_stupid_errors% /cgthreads8 /MD
+set compiler_base_flags=%better_output% %basic_optimizations% %warnings% %disable_stupid_errors% /cgthreads8 /MD /utf-8
 
 set compiler_debug_flags=/Z7 /Zo /RTCc
 set compiler_release_flags=/Gw /GL /O2
@@ -31,7 +31,7 @@ cl %compiler_base_flags% %compiler_debug_flags% /c ..\main.cpp /I"../vendor"
 rc /nologo /r ..\icons\resource.rc
 move ..\icons\resource.res ..\build >nul
 
-set linker_debug_flags=/debug /incremental:no /cgthreads:8 /time /WX /STACK:0x100000,0x100000
+set linker_debug_flags=/debug /incremental:no /cgthreads:8 /time /WX /STACK:0x100000,0x100000 kernel32.lib
 @REM -STACK:0x100000,0x100000
 @REM /kernel
 @REM /driver

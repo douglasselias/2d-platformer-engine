@@ -95,3 +95,6 @@ bool operator ==(const Vector2 &lhs, const Vector2 &rhs) {
 bool operator ==(const Vector3 &lhs, const Vector3 &rhs) {
   return Vector3Equals(lhs, rhs);
 }
+
+// error C2088: o operador integrado "-" não pode ser aplicado a um operando do tipo "Vector2"
+// camera2D.target = -1 * current_pan_delta; todo: this doesn't work

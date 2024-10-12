@@ -20,53 +20,19 @@
 #include "music.cpp"
 #endif
 
-// struct HashTable {
-//   u64 count;
-//   u64 max_size;
-//   u8 *table[4096];
-// };
-
-// HashTable *create_ht(Arena *arena, u64 size) {
-//   HashTable *ht = alloc_arena(arena, sizeof(HashTable));
-//   ht->count = 0;
-//   ht->max_size = size;
-//   ht->table = alloc_arena(arena, size);
-//   return ht;
-// }
-
 #define HASH_TABLE_SIZE 4096
 
 u64 hash_key(const char *key) {
   u64 hash = 0;
 
   while(*key) {
-    hash += *key;
+    // hash += *key;
+    hash = 31 * hash + *key;
     key++;
   }
 
-  return hash % 4096;
+  return hash % HASH_TABLE_SIZE;
 }
-
-// void insert_ht(HashTable *ht, u8 *key, u8 value) {
-//   u64 hash = hash_key(key);
-//   printf("Hash: %ld\n", hash);
-//   ht->table[hash] = value;
-//   ht->count++;
-// }
-
-// u8 get_ht(HashTable *ht, u8 *key) {
-//   u64 hash = hash_key(key);
-//   return ht->table[hash];
-// }
-
-
-
-// char* append_chinese_char(char* str, char* c) {
-//   u64 total_len = strlen(str) + strlen(c) + 1;
-  
-//   strcpy(str);
-//   return result;
-// }
 
 char *chinese_chars[4096] = {};
 
@@ -80,7 +46,8 @@ Font load_font() {
       total_chars++;
     }
   }
-  // s32* codepoints = LoadCodepoints("qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM!@#$%&().;>:<,[]{}/我是猫", &count);
+  // s32 count_alpha;
+  // s32* alphabet = LoadCodepoints("qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM!@#$%&().;>:<,[]{}/我是猫", &count_alpha);
   char* alphabet = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM?!@#$%&().;>:<,[]{}/'";
   u64 alphabet_length = strlen(alphabet);
   char* all_codepoints = (char*)MemAlloc(alphabet_length * sizeof(char) + sizeof(char) * 3 * total_chars);
@@ -92,6 +59,8 @@ Font load_font() {
       strcat(all_codepoints, chinese_chars[i]);
     }
   }
+
+  printf("Chinese! %ls", L"我是猫");
 
   s32 count;
   s32* codepoints = LoadCodepoints(all_codepoints, &count);
@@ -141,7 +110,46 @@ char* i18n(u64 dictionary_index, const char* key) {
   return "";
 }
 
+#include <io.h>
+#include <fcntl.h>
+#ifndef _O_U16TEXT
+  #define _O_U16TEXT 0x20000
+#endif
+
+
 s32 main() {
+  // setlocale(LC_ALL, "");
+    setlocale(LC_ALL, "C.UTF-8"); // this also works
+    
+     printf("%ls", L"Δικαιοπολις εν αγρω εστιν");
+
+    wchar_t hello_eng[] = L"Hello World!";
+    wchar_t *hello_china = L"世界, 你好!";
+    wchar_t *hello_japan = L"こんにちは日本!";
+    printf("1: %ls\n", hello_eng);
+    // printf("2: %s\n", hello_china);
+    printf("3: %ls\n", hello_japan);
+
+_setmode(_fileno(stdout), _O_WTEXT);
+    wprintf(hello_china);
+
+    wprintf(L"%s\n", L"Δικαιοπολις εν αγρω εστιν");
+_setmode(_fileno(stdout), _O_TEXT );
+
+ _setmode(_fileno(stdout), _O_U16TEXT);
+    wprintf(L"\x043a\x043e\x0448\x043a\x0430 \x65e5\x672c\x56fd\n");
+_setmode(_fileno(stdout), _O_TEXT );
+
+// s32 lpNumberOfCharsWritten;
+// WriteConsoleW(
+//   stdout,
+// hello_china,
+//   wcslen(hello_china),
+// lpNumberOfCharsWritten,
+// NULL
+// );
+
+
   init_screen();
 
   i18n_init();
@@ -203,6 +211,11 @@ s32 main() {
 
   #define TILE_SIZE 16
 
+  enum class Mode {
+    EDITOR,
+    ASSET,
+  };
+
   while (!WindowShouldClose()) {
     f32 dt = GetFrameTime();
     // UpdateMusicStream(music);
@@ -237,19 +250,8 @@ s32 main() {
     }
 
     if(IsKeyDown(KEY_SPACE)) {
-      // SetMouseCursor(PAN_CURSOR);
       current_pan_delta = last_pan_position - mouse_position;
-      // log("delta pan", current_pan_delta);
-      // last_pan_position = mouse_position;
-
-      // camera.position = {current_pan_delta.x, current_pan_delta.y, 0};
-      // error C2088: o operador integrado "-" não pode ser aplicado a um operando do tipo "Vector2"
-      // camera2D.target = -1 * current_pan_delta; todo: this doesn't work
-      // Vector2 world_position = GetScreenToWorld2D(current_pan_delta * -1, camera2D);
-      // camera2D.target = world_position - current_pan_delta;
       camera2D.target = current_pan_delta;
-
-      // log("world position", world_position);
     }
     
     if(IsKeyPressed(KEY_F)) {
