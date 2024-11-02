@@ -116,6 +116,15 @@ char* i18n(u64 dictionary_index, const char* key) {
   #define _O_U16TEXT 0x20000
 #endif
 
+void go_fullscreen(s32 display) {
+  // if we are not full screen, set the window size to match the monitor we are on
+  SetWindowPosition(0,0);
+  SetWindowSize(GetMonitorWidth(display), GetMonitorHeight(display));
+  SetWindowState(FLAG_WINDOW_UNDECORATED);
+}
+
+u32 selected_tile_x = 0;
+u32 selected_tile_y = 0;
 
 s32 main() {
   // setlocale(LC_ALL, "");
@@ -171,20 +180,21 @@ _setmode(_fileno(stdout), _O_TEXT );
   #endif
 
   s32 display = GetCurrentMonitor();
-  bool is_fullscreen = false;
+  bool is_fullscreen = true;
 
-  Camera camera = {};
-  camera.position = {0, 0, -10};
-  camera.target = {0, 0, 0};
-  camera.up = {0, 1, 0};
-  camera.fovy = 45;
-  camera.projection = CAMERA_PERSPECTIVE;
+  // Camera camera = {};
+  // camera.position = {0, 0, -10};
+  // // camera.target = {0, 0, 0};
+  // camera.up = {0, 1, 0};
+  // camera.fovy = 45;
+  // camera.projection = CAMERA_PERSPECTIVE;
 
   Camera2D camera2D = {};
   // camera2D.offset = {screen_width/2, screen_height/2};
-  camera2D.offset = {};
-  camera2D.target = {0, 0};
-  camera2D.rotation = 0;
+  // camera2D.offset = {};
+  // camera2D.target = {0, 0};
+  camera2D.target = {-screen_width/2, -screen_height/2};
+  // camera2D.rotation = 0;
   camera2D.zoom = 1;
   // camera2D. = {0, 1, 0};
   // camera2D.fovy = 45;
@@ -216,6 +226,8 @@ _setmode(_fileno(stdout), _O_TEXT );
     ASSET,
   };
 
+  go_fullscreen(display);
+
   while (!WindowShouldClose()) {
     f32 dt = GetFrameTime();
     // UpdateMusicStream(music);
@@ -227,6 +239,8 @@ _setmode(_fileno(stdout), _O_TEXT );
       tilemap_scale = Clamp(tilemap_scale, 2, 6);
       // log("DT: %.2f", wheel_delta);
     }
+
+    // if()
 
     // if(IsKeyPressed(KEY_D))
     //   SetMouseCursor(++mouse_cursor);
@@ -261,17 +275,14 @@ _setmode(_fileno(stdout), _O_TEXT );
         SetWindowSize(screen_width, screen_height);
         ClearWindowState(FLAG_WINDOW_UNDECORATED);
       } else {
-        // if we are not full screen, set the window size to match the monitor we are on
-        SetWindowPosition(0,0);
-        SetWindowSize(GetMonitorWidth(display), GetMonitorHeight(display));
-        SetWindowState(FLAG_WINDOW_UNDECORATED);
+        go_fullscreen(display);
       }
       // ToggleFullscreen();
       is_fullscreen = !is_fullscreen;
     }
 
     BeginDrawing();
-    ClearBackground(RAYWHITE);
+    ClearBackground(GRAY);
 
       // BeginMode3D(camera);
       //   // DrawCube(cube_position, 2.0f, 2.0f, 2.0f, RED);
@@ -283,13 +294,27 @@ _setmode(_fileno(stdout), _O_TEXT );
         // DrawTexturePro(tilemap, {0,0,(f32)tilemap.width,(f32)tilemap.height}, {0,0,16*70,16*70}, {0,0}, 0, WHITE);
         DrawTextureEx(tilemap, {0,0}, 0, tilemap_scale, WHITE);
 
-        for(u32 col = 0; col < (u32)(tilemap.width * tilemap_scale / TILE_SIZE); col++) {
+        for(u32 col = 0; col <= (u32)(tilemap.width / TILE_SIZE); col++) {
           DrawLineV({(f32)TILE_SIZE * tilemap_scale * col, 0}, {(f32)TILE_SIZE * tilemap_scale * col, (f32)tilemap.height * tilemap_scale}, WHITE);
         }
-        for(u32 row = 0; row < (u32)(tilemap.height * tilemap_scale / TILE_SIZE); row++) {
+        for(u32 row = 0; row <= (u32)(tilemap.height / TILE_SIZE); row++) {
           DrawLineV({0, (f32)TILE_SIZE * tilemap_scale * row}, {(f32)tilemap.width * tilemap_scale, (f32)TILE_SIZE * tilemap_scale * row}, WHITE);
         }
+
+        for(u32 col = 0; col < (u32)(tilemap.width / TILE_SIZE); col++) {
+          for(u32 row = 0; row < (u32)(tilemap.height / TILE_SIZE); row++) {
+            if(CheckCollisionPointRec(mouse_position + camera2D.target, {col * TILE_SIZE * tilemap_scale, row * TILE_SIZE * tilemap_scale, TILE_SIZE * tilemap_scale, TILE_SIZE * tilemap_scale})) {
+              DrawRectangleRec({col * TILE_SIZE * tilemap_scale, row * TILE_SIZE * tilemap_scale, TILE_SIZE * tilemap_scale, TILE_SIZE * tilemap_scale}, {0,255,0,(u8)(255*0.5)});
+              selected_tile_x = col;
+              selected_tile_y = row;
+            }
+          }
+        }
+
       EndMode2D();
+
+      // DrawTexturePro(tilemap, {camera2D.target.x,camera2D.target.y,TILE_SIZE * tilemap_scale,TILE_SIZE * tilemap_scale}, {0,0,100,100}, {0,0}, 0, WHITE);
+      DrawTexturePro(tilemap, {(f32)selected_tile_x*TILE_SIZE,(f32)selected_tile_y*TILE_SIZE,TILE_SIZE,TILE_SIZE}, {0,0,100,100}, {0,0}, 0, WHITE);
 
       // DrawTextEx(font, i18n(dictionary_index, "question"), {10,screen_center.y}, 70, 4, BLACK);
 
