@@ -259,11 +259,20 @@ s32 main() {
 
   // level_init(level_height, level_width);
 
-  go_fullscreen(display);
+  // go_fullscreen(display);
 
   RenderTexture2D render_texture = LoadRenderTexture(monitor_width, monitor_height);
 
   printf("MW %d, MH %d\n", monitor_width, monitor_height);
+
+  /// @todo:
+  // locale
+  // vector overload
+  // 3D
+  // asset embed
+  // aspect ratio
+  // level editor
+  // better fullscreen
 
   while (!WindowShouldClose()) {
     f32 dt = GetFrameTime();
@@ -314,15 +323,17 @@ s32 main() {
     if(IsKeyPressed(KEY_F)) {
       if (is_fullscreen) {
         // if we are full screen, then go back to the windowed size
-        SetWindowPosition(monitor_width/2-half_screen_width, monitor_height/2-half_screen_height);
-        SetWindowSize(screen_width, screen_height);
-        ClearWindowState(FLAG_WINDOW_UNDECORATED);
+        // SetWindowPosition(monitor_width/2-half_screen_width, monitor_height/2-half_screen_height);
+        // SetWindowSize(screen_width, screen_height);
+        // ClearWindowState(FLAG_WINDOW_UNDECORATED);
         current_screen_width = screen_width;
         current_screen_height = screen_height;
+        // ToggleFullscreen();
       } else {
         go_fullscreen(display);
         current_screen_width = monitor_width;
         current_screen_height = monitor_height;
+        // ToggleFullscreen();
       }
       is_fullscreen = !is_fullscreen;
     }
@@ -441,8 +452,9 @@ s32 main() {
           }
         }
 
-
       EndMode2D();
+
+      draw_bezier_line({{half_screen_width,half_screen_height}, mouse_position+camera2D.target}, RED, 10);
 
       // DrawTexturePro(tilemap, {camera2D.target.x,camera2D.target.y,TILE_SIZE * tilemap_scale,TILE_SIZE * tilemap_scale}, {0,0,100,100}, {0,0}, 0, WHITE);
       DrawTexturePro(tilemap, {(f32)selected_tile_x*TILE_SIZE,(f32)selected_tile_y*TILE_SIZE,TILE_SIZE,TILE_SIZE}, {(f32)current_screen_width-110,10,100,100}, {0,0}, 0, WHITE);
