@@ -1,4 +1,7 @@
 const char *game_title = "Game";
+// const u16 screen_width  = 1920;
+// const u16 screen_height = 1080;
+
 const u16 screen_width  = 1280;
 const u16 screen_height = 720;
 const u16 half_screen_width  = screen_width  / 2;
