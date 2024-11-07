@@ -16,14 +16,15 @@
 #include "src/screen.cpp"
 #include "src/text.cpp"
 
-// #define EXPORT_FONT 0
+// #define EXPORT_FONT 1
+// #define EXPORT_MUSIC 1
 
 #ifndef EXPORT_FONT
 #include "bundle/font.cpp"
 #endif
 
-#if 0
-#include "music.cpp"
+#ifndef EXPORT_MUSIC
+#include "bundle/music.cpp"
 #endif
 
 enum class EngineState {
@@ -32,18 +33,12 @@ enum class EngineState {
   TILE_SELECTION,
 };
 
-enum Languages {
-  EN,
-  CN,
-  PT_BR,
-};
-
 s32 main() {
   puts("-----------\nGame Logs |\n__________|");
   EngineState engine_state = EngineState::TILE_SELECTION;
 
   init_screen();
-  i18n_init();
+  init_i18n();
   Languages dictionary_index = CN;
 
   #ifdef EXPORT_FONT
@@ -53,63 +48,51 @@ s32 main() {
   SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
   #endif
 
+  #ifdef EXPORT_MUSIC
   s32 *bin_size = (s32*)MemAlloc(sizeof(s32));
-  #if 0
-  unsigned char* music_bin = LoadFileData("../musics/battle.wav", bin_size);
-  ExportDataAsCode(music_bin, *bin_size, "../music.cpp");
+  u8* music_bin = LoadFileData("../musics/battle.wav", bin_size);
+  if(ExportDataAsCode(music_bin, *bin_size, "../bundle/music.cpp")) { puts("Success! (Music Exported)"); }
   #endif
 
-  Camera2D camera2D = {};
-  camera2D.zoom = 1;
-
-  Camera3D camera3D = {};
-  camera3D.position = {0, 5, -10};
-  camera3D.up = {0, 1, 0};
-  camera3D.fovy = 45;
-  camera3D.projection = CAMERA_PERSPECTIVE;
-
-  Vector3 cube_position = {};
-  f32 cube_rotation = 0;
-
-  #if 1
+  #ifdef EXPORT_MUSIC
   Music music = LoadMusicStream("../musics/battle.wav");
-  #elif 0
-  Music music = LoadMusicStreamFromMemory(".wav", music_bin, *bin_size);
   #else
   Music music = LoadMusicStreamFromMemory(".wav", MUSIC_DATA, MUSIC_DATA_SIZE);
   #endif
-  PlayMusicStream(music);
+  
+  Music music = LoadMusicStream("../musics/battle.wav");
 
   Texture2D tilemap = LoadTexture("../gfx/monochrome_tilemap_packed.png");
   f32 tilemap_scale = 2;
 
-  Vector2 last_pan_position = {};
-  Vector2 current_pan_delta = {};
-
   f32 TILE_SIZE = 16;
   u32 selected_tile_x = 0;
   u32 selected_tile_y = 0;
-
   // Vector2 level[level_height][level_width] = {};
 
-  RenderTexture2D render_texture = LoadRenderTexture(monitor_width, monitor_height);
+  Camera2D camera2D = {};
+  camera2D.zoom = 1;
+
+  Vector2 last_pan_position = {};
+  Vector2 current_pan_delta = {};
 
   /// @todo:
   // asset embed
   // level editor
 
-  // #if EXPORT_FONT
-  // if(ExportFontAsCode(font, "../bundle/font.cpp")) {
-  //   puts("Success!");
-  // }
-  // #endif
+  // if(ExportFontAsCode(font, "../bundle/font.cpp")) { puts("Success! (Font Exported)"); }
 
   while (!WindowShouldClose()) {
     f32 dt = GetFrameTime();
-    // UpdateMusicStream(music);
+    UpdateMusicStream(music);
 
     u32 level_width  = screen_width  / (TILE_SIZE * 1);
     u32 level_height = screen_height / (TILE_SIZE * 1);
+
+    if(IsKeyPressed(KEY_U)) {
+      if(IsMusicStreamPlaying(music)) PauseMusicStream(music);
+      else PlayMusicStream(music);
+    }
 
     if(IsMouseButtonPressed(0)) {
       engine_state = EngineState::LEVEL_EDITOR;
@@ -146,24 +129,10 @@ s32 main() {
       dictionary_index = dictionary_index == EN ? CN : EN;
     }
 
-    // BeginTextureMode(render_texture);
-    //   ClearBackground(MAGENTA);
-    //   DrawRectangle(half_screen_width - 128, half_screen_height - 128, 256, 256, BLACK);
-    //   DrawRectangle(half_screen_width - 112, half_screen_height - 112, 224, 224, RAYWHITE);
-    //   DrawText("raylib", half_screen_width - 44, half_screen_height + 48, 50, BLACK);
-    // EndTextureMode();
-
     BeginDrawing();
     ClearBackground(GRAY);
 
       BeginMode2D(camera2D);
-        DrawTexturePro(
-          render_texture.texture,
-          { 0, 0, (f32)render_texture.texture.width, (f32)render_texture.texture.height },
-          { (f32)0, (f32)0, (f32)1000, (f32)1000 },
-          {0,0}, 0, WHITE
-        );
-
         if(engine_state == EngineState::TILE_SELECTION) {
           DrawTextureEx(tilemap, {}, 0, tilemap_scale, WHITE);
 

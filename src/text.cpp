@@ -1,3 +1,9 @@
+enum Languages {
+  EN,
+  CN,
+  PT_BR,
+};
+
 #define HASH_TABLE_SIZE 4096
 
 u64 hash_key(const char *key) {
@@ -18,7 +24,7 @@ char *chinese_chars[4096] = {};
 
 #define bytes_of_chinese_char 3
 
-void i18n_init() {
+void init_i18n() {
   char *csv = LoadFileText("../i18n.csv");
 
   for(char *line = strtok(csv, "\n"); line != null; line = strtok(null, "\n")) {
