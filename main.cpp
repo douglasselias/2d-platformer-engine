@@ -16,10 +16,23 @@
 #include "src/screen.cpp"
 #include "src/text.cpp"
 
-// #define EXPORT_FONT 1
+#define DEV 0
+#define EXPORT_FONT  0
+#define EXPORT_MUSIC 0
+#define EXPORT_IMG   0
 
-#ifndef EXPORT_FONT
-#include "bundle/font.cpp"
+#if DEV == 0
+  #if EXPORT_FONT == 0
+  #include "bundle/font.cpp"
+  #endif
+
+  #if EXPORT_MUSIC == 0
+  #include "bundle/music.cpp"
+  #endif
+
+  #if EXPORT_IMG == 0
+  #include "bundle/img.cpp"
+  #endif
 #endif
 
 enum class EngineState {
@@ -30,22 +43,66 @@ enum class EngineState {
 
 s32 main() {
   puts("-----------\nGame Logs |\n__________|");
-  EngineState engine_state = EngineState::TILE_SELECTION;
 
   init_screen();
   init_i18n();
+
+  EngineState engine_state = EngineState::TILE_SELECTION;
   Languages dictionary_index = CN;
 
-  #ifdef EXPORT_FONT
+  #if DEV == 1
   Font font = load_font();
+  #elif EXPORT_FONT == 1
+  Font font = load_font();
+  if(ExportFontAsCode(font, "../bundle/font.cpp")) { puts("Success! (Font Exported)"); }
   #else
   Font font = LoadFont_Font();
   SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
   #endif
+  
+  const char* battle_music_path = "../musics/battle.wav";
+  #if DEV == 1
+  Music music = LoadMusicStream(battle_music_path);
+  #elif EXPORT_MUSIC == 1
+  s32 *bin_size = (s32*)MemAlloc(sizeof(s32));
+  u8* music_bin = LoadFileData(battle_music_path, bin_size);
+  s32 *compressed_size = (s32*)MemAlloc(sizeof(s32));
+  u8* compressed_music = CompressData(music_bin, *bin_size, compressed_size);
+  if(ExportDataAsCode(compressed_music, *compressed_size, "../bundle/music.cpp")) { puts("Success! (Music Exported)"); }
+  MemFree(compressed_music);
+  UnloadFileData(music_bin);
+  #else
+  s32 *decompressed_music_size = (s32*)MemAlloc(sizeof(s32));
+  u8* decompressed_music = DecompressData(MUSIC_DATA, MUSIC_DATA_SIZE, decompressed_music_size);
+  Music music = LoadMusicStreamFromMemory(".wav", decompressed_music, *decompressed_music_size);
+  #endif
 
-  Music music = LoadMusicStream("../musics/battle.wav");
+  const char* tilemap_image_path = "../gfx/monochrome_tilemap_packed.png";
+  #if DEV == 1
+  Texture2D tilemap = LoadTexture(tilemap_image_path);
+  #elif EXPORT_IMG == 1
+  Texture2D tilemap = LoadTexture(tilemap_image_path);
+  Image img = LoadImage(tilemap_image_path);
+  if(ExportImageAsCode(img, "../bundle/img.cpp")) {
+    puts("Success! (Img Exported)");
+    FILE* bundle_file = fopen("../bundle/img.cpp", "a");
+    const char* i = TextToUpper("img");
+    fprintf(bundle_file, 
+      "\nTexture2D load_texture_%s() {\n"
+      "\tImage img = {}; \n"
+      "\timg.data    = %s_DATA; \n"
+      "\timg.width   = %s_WIDTH; \n"
+      "\timg.height  = %s_HEIGHT; \n"
+      "\timg.mipmaps = 1; \n"
+      "\timg.format  = %s_FORMAT; \n"
+      "\treturn LoadTextureFromImage(img);\n}\n\n", i, i, i, i, i);
+    puts("Success! (Added img struct)");
+  }
+  UnloadImage(img);
+  #else
+  Texture2D tilemap = load_texture_IMG();
+  #endif
 
-  Texture2D tilemap = LoadTexture("../gfx/monochrome_tilemap_packed.png");
   f32 tilemap_scale = 2;
 
   f32 TILE_SIZE = 16;
@@ -58,10 +115,6 @@ s32 main() {
 
   Vector2 last_pan_position = {};
   Vector2 current_pan_delta = {};
-
-  #ifdef EXPORT_FONT
-  if(ExportFontAsCode(font, "../bundle/font.cpp")) { puts("Success! (Font Exported)"); }
-  #endif
 
   while (!WindowShouldClose()) {
     f32 dt = GetFrameTime();
