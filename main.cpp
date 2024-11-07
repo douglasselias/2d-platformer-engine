@@ -17,13 +17,9 @@
 #include "src/text.cpp"
 
 // #define EXPORT_FONT 1
-s
+
 #ifndef EXPORT_FONT
 #include "bundle/font.cpp"
-#endif
-
-#ifndef EXPORT_MUSIC
-#include "bundle/music.cpp"
 #endif
 
 enum class EngineState {
@@ -47,23 +43,7 @@ s32 main() {
   SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
   #endif
 
-  #ifdef EXPORT_MUSIC
-  s32 *bin_size = (s32*)MemAlloc(sizeof(s32));
-  u8* music_bin = LoadFileData("../musics/battle.wav", bin_size);
-  s32 *compressed_size = (s32*)MemAlloc(sizeof(s32));
-  u8* compressed_music = CompressData(music_bin, *bin_size, compressed_size);
-  if(ExportDataAsCode(compressed_music, *compressed_size, "../bundle/music.cpp")) { puts("Success! (Music Exported)"); }
-  MemFree(compressed_music);
-  UnloadFileData(music_bin);
-  #endif
-
-  #ifdef EXPORT_MUSIC
   Music music = LoadMusicStream("../musics/battle.wav");
-  #else
-  s32 *decompressed_music_size = (s32*)MemAlloc(sizeof(s32));
-  u8* decompressed_music = DecompressData(MUSIC_DATA, MUSIC_DATA_SIZE, decompressed_music_size);
-  Music music = LoadMusicStreamFromMemory(".wav", decompressed_music, *decompressed_music_size);
-  #endif
 
   Texture2D tilemap = LoadTexture("../gfx/monochrome_tilemap_packed.png");
   f32 tilemap_scale = 2;
@@ -79,11 +59,9 @@ s32 main() {
   Vector2 last_pan_position = {};
   Vector2 current_pan_delta = {};
 
-  /// @todo:
-  // asset embed
-  // level editor
-
-  // if(ExportFontAsCode(font, "../bundle/font.cpp")) { puts("Success! (Font Exported)"); }
+  #ifdef EXPORT_FONT
+  if(ExportFontAsCode(font, "../bundle/font.cpp")) { puts("Success! (Font Exported)"); }
+  #endif
 
   while (!WindowShouldClose()) {
     f32 dt = GetFrameTime();
