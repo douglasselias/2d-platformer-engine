@@ -82,7 +82,6 @@ s32 main() {
   RenderTexture2D render_texture = LoadRenderTexture(monitor_width, monitor_height);
 
   /// @todo:
-  // vector overload
   // 3D
   // asset embed
   // level editor

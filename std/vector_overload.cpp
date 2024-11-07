@@ -1,22 +1,42 @@
-#define vector2_op_value(type, op) \
+#define vector2_op_value_lhs(type, op) \
 Vector2 operator op(const Vector2 lhs, const type value) { \
   return {lhs.x op value, lhs.y op value}; \
 }
 
-vector2_op_value(f32, +)
-vector2_op_value(f32, -)
-vector2_op_value(f32, *)
-vector2_op_value(f32, /)
+vector2_op_value_lhs(f32, +)
+vector2_op_value_lhs(f32, -)
+vector2_op_value_lhs(f32, *)
+vector2_op_value_lhs(f32, /)
 
-#define vector3_op_value(type, op) \
+#define vector2_op_value_rhs(type, op) \
+Vector2 operator op(const type value, const Vector2 rhs) { \
+  return {rhs.x op value, rhs.y op value}; \
+}
+
+vector2_op_value_rhs(f32, +)
+vector2_op_value_rhs(f32, -)
+vector2_op_value_rhs(f32, *)
+vector2_op_value_rhs(f32, /)
+
+#define vector3_op_value_lhs(type, op) \
 Vector3 operator op(const Vector3 lhs, const type value) { \
   return {lhs.x op value, lhs.y op value, lhs.z op value}; \
 }
 
-vector3_op_value(f32, +)
-vector3_op_value(f32, -)
-vector3_op_value(f32, *)
-vector3_op_value(f32, /)
+vector3_op_value_lhs(f32, +)
+vector3_op_value_lhs(f32, -)
+vector3_op_value_lhs(f32, *)
+vector3_op_value_lhs(f32, /)
+
+#define vector3_op_value_rhs(type, op) \
+Vector3 operator op(const type value, const Vector3 rhs) { \
+  return {rhs.x op value, rhs.y op value, rhs.z op value}; \
+}
+
+vector3_op_value_rhs(f32, +)
+vector3_op_value_rhs(f32, -)
+vector3_op_value_rhs(f32, *)
+vector3_op_value_rhs(f32, /)
 
 #define mutable_vector2_op_value(type, op) \
 Vector2 &operator op(Vector2 &lhs, const type value) { \
@@ -96,5 +116,10 @@ bool operator ==(const Vector3 &lhs, const Vector3 &rhs) {
   return Vector3Equals(lhs, rhs);
 }
 
-// error C2088: o operador integrado "-" não pode ser aplicado a um operando do tipo "Vector2"
-// camera2D.target = -1 * current_pan_delta; todo: this doesn't work
+Vector2 operator -(const Vector2 &v) {
+  return {-v.x, -v.y};
+}
+
+Vector3 operator -(const Vector3 &v) {
+  return {-v.x, -v.y, -v.z};
+}
