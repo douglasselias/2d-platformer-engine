@@ -13,13 +13,11 @@
 #include "std/shapes.cpp"
 #include "std/mouse.cpp"
 
-#include "src/screen.cpp"
-#include "src/text.cpp"
-
 #define DEV 0
 #define EXPORT_FONT  0
 #define EXPORT_MUSIC 0
 #define EXPORT_IMG   0
+#define EXPORT_ICON  0
 
 #if DEV == 0
   #if EXPORT_FONT == 0
@@ -33,7 +31,14 @@
   #if EXPORT_IMG == 0
   #include "bundle/img.cpp"
   #endif
+
+  #if EXPORT_ICON == 0
+  #include "bundle/icon.cpp"
+  #endif
 #endif
+
+#include "src/screen.cpp"
+#include "src/text.cpp"
 
 enum class EngineState {
   IN_GAME,

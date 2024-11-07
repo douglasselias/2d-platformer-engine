@@ -12,7 +12,27 @@ void init_screen() {
   SetTraceLogLevel(LOG_WARNING);
   InitWindow(screen_width, screen_height, game_title);
   // SetWindowState(FLAG_WINDOW_UNDECORATED);
+
+  #if DEV == 1
   Image icon = LoadImage("../icons/game16.png");
+  #elif EXPORT_ICON == 1
+  Image icon = LoadImage("../icons/game16.png");
+  if(ExportImageAsCode(icon, "../bundle/icon.cpp")) {
+    puts("Success! (Icon Exported)");
+    FILE* bundle_file = fopen("../bundle/icon.cpp", "a");
+    const char* i = TextToUpper("icon");
+    fprintf(bundle_file, 
+      "\nImage icon = { \n"
+      "\t%s_DATA, \n"
+      "\t%s_WIDTH, \n"
+      "\t%s_HEIGHT, \n"
+      "\t1, \n"
+      "\t%s_FORMAT, \n"
+      "};\n", i, i, i, i);
+    puts("Success! (Added icon struct)");
+  }
+  #endif
+
   SetWindowIcon(icon);
   SetTargetFPS(60);
 
