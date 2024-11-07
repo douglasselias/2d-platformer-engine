@@ -115,10 +115,20 @@ s32 main() {
 
   f32 tilemap_scale = 2;
 
-  f32 TILE_SIZE = 16;
-  u32 selected_tile_x = 0;
-  u32 selected_tile_y = 0;
-  // Vector2 level[level_height][level_width] = {};
+  const f32 TILE_SIZE = 16;
+  Vector2 selected_tile = {};
+  f32 selected_tile_alpha = 1;
+  Rectangle selected_tile_rect = {(f32)screen_width - 110, 10, 100, 100};
+
+  const u8 level_tile_scale = 3;
+  const u32 level_width  = screen_width  / (TILE_SIZE * level_tile_scale);
+  const u32 level_height = screen_height / (TILE_SIZE * level_tile_scale);
+  Vector2 level[level_height][level_width] = {};
+  for(u32 col = 0; col < level_height; col++) {
+    for(u32 row = 0; row < level_width; row++) {
+      level[col][row] = {-1, -1};
+    }
+  }
 
   Camera2D camera2D = {};
   camera2D.zoom = 1;
@@ -126,24 +136,54 @@ s32 main() {
   Vector2 last_pan_position = {};
   Vector2 current_pan_delta = {};
 
-  while (!WindowShouldClose()) {
+  while(!WindowShouldClose()) {
     f32 dt = GetFrameTime();
+    Vector2 mouse_position = GetMousePosition();
     UpdateMusicStream(music);
-
-    u32 level_width  = screen_width  / (TILE_SIZE * 1);
-    u32 level_height = screen_height / (TILE_SIZE * 1);
 
     if(IsKeyPressed(KEY_U)) {
       if(IsMusicStreamPlaying(music)) PauseMusicStream(music);
       else PlayMusicStream(music);
     }
 
+    if(IsKeyPressed(KEY_R)) {
+      camera2D.target = {};
+      tilemap_scale = 2;
+    }
+
+    u8 border = 20;
+    Rectangle alpha_rect = {selected_tile_rect.x - border, selected_tile_rect.y - border, selected_tile_rect.width + border * 2, selected_tile_rect.height + border * 2};
+    if(CheckCollisionPointRec(mouse_position, alpha_rect)) {
+      selected_tile_alpha = Lerp(selected_tile_alpha, 0.1, 0.1);
+    } else {
+      selected_tile_alpha = Lerp(selected_tile_alpha, 1, 0.1);
+    }
+
+    static f32 cooldown_timer = 0;
     if(IsMouseButtonPressed(0)) {
-      engine_state = EngineState::LEVEL_EDITOR;
+      if(engine_state == EngineState::TILE_SELECTION) {
+        engine_state = EngineState::LEVEL_EDITOR;
+        cooldown_timer = 0.3;
+        camera2D.target = {};
+      }
+    }
+
+    /// @note: this prevents placing a tile when transitioning between tile selection and level editor
+    cooldown_timer -= dt;
+    if(cooldown_timer < 0) cooldown_timer = 0;
+
+    if(IsMouseButtonDown(0)) {
+      if(engine_state == EngineState::LEVEL_EDITOR && FloatEquals(cooldown_timer, 0)) {
+        Vector2 level_position = (mouse_position + camera2D.target) / (TILE_SIZE * level_tile_scale);
+        u32 x = (u32)floor(Clamp(level_position.x, 0, level_width));
+        u32 y = (u32)floor(Clamp(level_position.y, 0, level_height));
+        level[y][x] = selected_tile;
+      }
     }
 
     if(IsMouseButtonPressed(1)) {
       engine_state = EngineState::TILE_SELECTION;
+      camera2D.target = current_pan_delta;
     }
 
     f32 wheel_delta = GetMouseWheelMove();
@@ -152,21 +192,23 @@ s32 main() {
       tilemap_scale = Clamp(tilemap_scale, 2, 6);
     }
 
-    Vector2 mouse_position = GetMousePosition();
     if(IsKeyPressed(KEY_SPACE)) {
-      SetMouseCursor(PAN_CURSOR);
-      last_pan_position = camera2D.target + mouse_position;
+      if(engine_state == EngineState::TILE_SELECTION) {
+        SetMouseCursor(PAN_CURSOR);
+        last_pan_position = camera2D.target + mouse_position;
+      }
     }
 
     if(IsKeyReleased(KEY_SPACE)) {
       SetMouseCursor(ARROW_CURSOR);
       last_pan_position = {};
-      current_pan_delta = {};
     }
 
     if(IsKeyDown(KEY_SPACE)) {
-      current_pan_delta = last_pan_position - mouse_position;
-      camera2D.target = current_pan_delta;
+      if(engine_state == EngineState::TILE_SELECTION) {
+        current_pan_delta = last_pan_position - mouse_position;
+        camera2D.target = current_pan_delta;
+      }
     }
 
     if(IsKeyPressed(KEY_J)) {
@@ -195,57 +237,64 @@ s32 main() {
                 if(engine_state == EngineState::LEVEL_EDITOR) {
                   continue;
                 }
-                selected_tile_x = col;
-                selected_tile_y = row;
+                selected_tile = {(f32)col, (f32)row};
               }
             }
           }
         } else if(engine_state == EngineState::LEVEL_EDITOR) {
-          for(u32 col = 0; col < level_width/tilemap_scale; col++) {
-            for(u32 row = 0; row < level_height/tilemap_scale; row++) {
-              f32 tile_scale = TILE_SIZE * 1;
-              DrawTexturePro(tilemap, 
-                {
-                  (f32)selected_tile_x * tile_scale,
-                  (f32)selected_tile_y * tile_scale,
-                  tile_scale, tile_scale
-                }, 
-                {
-                  (f32)col * tile_scale * tilemap_scale + camera2D.target.x,
-                  (f32)row * tile_scale * tilemap_scale + camera2D.target.y,
-                  tile_scale * tilemap_scale, tile_scale * tilemap_scale
-                }, {0,0}, 0, WHITE);
+          for(u32 col = 0; col < level_width; col++) {
+            for(u32 row = 0; row < level_height; row++) {
+              Vector2 tile_position = level[row][col];
+              if(!FloatEquals(tile_position.x, -1) && !FloatEquals(tile_position.y, -1)) {
+                DrawTexturePro(tilemap, 
+                  {
+                    (f32)tile_position.x * TILE_SIZE,
+                    (f32)tile_position.y * TILE_SIZE,
+                    TILE_SIZE, TILE_SIZE
+                  }, 
+                  {
+                    (f32)col * TILE_SIZE * level_tile_scale + camera2D.target.x,
+                    (f32)row * TILE_SIZE * level_tile_scale + camera2D.target.y,
+                    TILE_SIZE * level_tile_scale, TILE_SIZE * level_tile_scale
+                  }, {0,0}, 0, WHITE);
+              }
+              DrawLineV({0, (f32)TILE_SIZE * level_tile_scale * row}, {(f32)screen_width * level_tile_scale, (f32)TILE_SIZE * level_tile_scale * row}, WHITE);
             }
+            DrawLineV({(f32)TILE_SIZE * level_tile_scale * col, 0}, {(f32)TILE_SIZE * level_tile_scale * col, (f32)screen_height * level_tile_scale}, WHITE);
           }
         }
 
       EndMode2D();
 
-      DrawTexturePro(tilemap, {(f32)selected_tile_x*TILE_SIZE,(f32)selected_tile_y*TILE_SIZE,TILE_SIZE,TILE_SIZE}, {(f32)screen_width-110,10,100,100}, {0,0}, 0, WHITE);
+      DrawTexturePro(tilemap,
+        {selected_tile.x * TILE_SIZE,selected_tile.y * TILE_SIZE,TILE_SIZE,TILE_SIZE},
+        selected_tile_rect, {0,0}, 0, {255, 255, 255, (u8)(255 * selected_tile_alpha)});
 
       u32 font_size = 70;
       u8 spacing = 0;
 
-      {
-        char* hello_world_text = i18n(dictionary_index, "hello_world");
-        Vector2 pos = {screen_center.x - MeasureTextEx(font, hello_world_text, font_size, spacing).x / 2, screen_center.y - font_size};
-        DrawTextEx(font, hello_world_text, pos, font_size, spacing, BLACK);
-        DrawTextEx(font, hello_world_text, pos + 3, font_size, spacing, WHITE);
-      }
+      // DrawRectangleRec(alpha_rect, WHITE);
 
-      {
-        char* main_menu_play_text = i18n(dictionary_index, "main_menu_play");
-        Vector2 pos = {screen_center.x - MeasureTextEx(font, main_menu_play_text, font_size, spacing).x / 2, screen_center.y};
-        DrawTextEx(font, main_menu_play_text, pos, font_size, spacing, BLACK);
-        DrawTextEx(font, main_menu_play_text, pos + 3, font_size, spacing, WHITE);
-      }
+      // {
+      //   char* hello_world_text = i18n(dictionary_index, "hello_world");
+      //   Vector2 pos = {screen_center.x - MeasureTextEx(font, hello_world_text, font_size, spacing).x / 2, screen_center.y - font_size};
+      //   DrawTextEx(font, hello_world_text, pos, font_size, spacing, BLACK);
+      //   DrawTextEx(font, hello_world_text, pos + 3, font_size, spacing, WHITE);
+      // }
 
-      {
-        char* hello_sailor_text = i18n(dictionary_index, "hello_sailor");
-        Vector2 pos = {screen_center.x - MeasureTextEx(font, hello_sailor_text, font_size, spacing).x / 2, screen_center.y + font_size};
-        DrawTextEx(font, hello_sailor_text, pos, font_size, spacing, BLACK);
-        DrawTextEx(font, hello_sailor_text, pos + 3, font_size, spacing, WHITE);
-      }
+      // {
+      //   char* main_menu_play_text = i18n(dictionary_index, "main_menu_play");
+      //   Vector2 pos = {screen_center.x - MeasureTextEx(font, main_menu_play_text, font_size, spacing).x / 2, screen_center.y};
+      //   DrawTextEx(font, main_menu_play_text, pos, font_size, spacing, BLACK);
+      //   DrawTextEx(font, main_menu_play_text, pos + 3, font_size, spacing, WHITE);
+      // }
+
+      // {
+      //   char* hello_sailor_text = i18n(dictionary_index, "hello_sailor");
+      //   Vector2 pos = {screen_center.x - MeasureTextEx(font, hello_sailor_text, font_size, spacing).x / 2, screen_center.y + font_size};
+      //   DrawTextEx(font, hello_sailor_text, pos, font_size, spacing, BLACK);
+      //   DrawTextEx(font, hello_sailor_text, pos + 3, font_size, spacing, WHITE);
+      // }
 
     EndDrawing();
   }
