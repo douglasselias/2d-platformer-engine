@@ -17,8 +17,7 @@
 #include "src/text.cpp"
 
 // #define EXPORT_FONT 1
-// #define EXPORT_MUSIC 1
-
+s
 #ifndef EXPORT_FONT
 #include "bundle/font.cpp"
 #endif
@@ -51,16 +50,20 @@ s32 main() {
   #ifdef EXPORT_MUSIC
   s32 *bin_size = (s32*)MemAlloc(sizeof(s32));
   u8* music_bin = LoadFileData("../musics/battle.wav", bin_size);
-  if(ExportDataAsCode(music_bin, *bin_size, "../bundle/music.cpp")) { puts("Success! (Music Exported)"); }
+  s32 *compressed_size = (s32*)MemAlloc(sizeof(s32));
+  u8* compressed_music = CompressData(music_bin, *bin_size, compressed_size);
+  if(ExportDataAsCode(compressed_music, *compressed_size, "../bundle/music.cpp")) { puts("Success! (Music Exported)"); }
+  MemFree(compressed_music);
+  UnloadFileData(music_bin);
   #endif
 
   #ifdef EXPORT_MUSIC
   Music music = LoadMusicStream("../musics/battle.wav");
   #else
-  Music music = LoadMusicStreamFromMemory(".wav", MUSIC_DATA, MUSIC_DATA_SIZE);
+  s32 *decompressed_music_size = (s32*)MemAlloc(sizeof(s32));
+  u8* decompressed_music = DecompressData(MUSIC_DATA, MUSIC_DATA_SIZE, decompressed_music_size);
+  Music music = LoadMusicStreamFromMemory(".wav", decompressed_music, *decompressed_music_size);
   #endif
-  
-  Music music = LoadMusicStream("../musics/battle.wav");
 
   Texture2D tilemap = LoadTexture("../gfx/monochrome_tilemap_packed.png");
   f32 tilemap_scale = 2;
