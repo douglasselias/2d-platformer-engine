@@ -13,11 +13,12 @@
 #include "std/shapes.cpp"
 #include "std/mouse.cpp"
 
-#define DEV 0
+#define DEV 1
 #define EXPORT_FONT  0
 #define EXPORT_MUSIC 0
 #define EXPORT_IMG   0
 #define EXPORT_ICON  0
+#define EXPORT_I18N  0
 
 #if DEV == 0
   #if EXPORT_FONT == 0
@@ -34,6 +35,10 @@
 
   #if EXPORT_ICON == 0
   #include "bundle/icon.cpp"
+  #endif
+
+  #if EXPORT_I18N == 0
+  #include "bundle/i18n.cpp"
   #endif
 #endif
 

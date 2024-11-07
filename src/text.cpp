@@ -25,12 +25,26 @@ char *chinese_chars[4096] = {};
 #define bytes_of_chinese_char 3
 
 void init_i18n() {
-  char *csv = LoadFileText("../i18n.csv");
+  const char* i18n_path = "../i18n.csv";
+  #if DEV == 1
+  char *csv = LoadFileText(i18n_path);
+  #elif EXPORT_I18N == 1
+  char *csv = LoadFileText(i18n_path);
+
+  s32 *bin_size = (s32*)MemAlloc(sizeof(s32));
+  u8 *i18n_bin = LoadFileData(i18n_path, bin_size);
+  s32 *compressed_size = (s32*)MemAlloc(sizeof(s32));
+  u8* compressed_i18n = CompressData(i18n_bin, *bin_size, compressed_size);
+  if(ExportDataAsCode(compressed_i18n, *compressed_size, "../bundle/i18n.cpp")) { puts("Success! (i18n Exported)"); }
+  #else
+  s32 *decompressed_i18n_size = (s32*)MemAlloc(sizeof(s32));
+  char* csv = (char*)DecompressData(I18N_DATA, I18N_DATA_SIZE, decompressed_i18n_size);
+  #endif
 
   for(char *line = strtok(csv, "\n"); line != null; line = strtok(null, "\n")) {
-    char key[200];
-    char en[200];
-    char cn[200];
+    char key[200] = {};
+    char en[200] = {};
+    char cn[200] = {};
     sscanf(line, "%[^,],%[^,],%[^\n]", key, en, cn);
 
     u64 key_hash = hash_key(key);
