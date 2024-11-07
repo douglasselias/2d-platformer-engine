@@ -85,25 +85,12 @@ s32 main() {
   RenderTexture2D render_texture = LoadRenderTexture(monitor_width, monitor_height);
 
   /// @todo:
-  // 3D
   // asset embed
   // level editor
-
-  // Model model = LoadModel("../models/crate.obj");
-  Model model = LoadModel("../models/craft_speederA.obj");
-  // Texture2D texture = LoadTexture("../models/checkered.png");
-  // Texture2D texture = LoadTexture("../models/craft_speederA.mtl");
-  // model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = texture;
-
-  f32 pitch = 0;
-  f32 roll = 0;
-  f32 yaw = 0;
 
   while (!WindowShouldClose()) {
     f32 dt = GetFrameTime();
     // UpdateMusicStream(music);
-    cube_rotation += dt * 100;
-    model.transform = MatrixRotateXYZ({ DEG2RAD*pitch, DEG2RAD*yaw, DEG2RAD*roll });
 
     u32 level_width  = screen_width  / (TILE_SIZE * 1);
     u32 level_height = screen_height / (TILE_SIZE * 1);
@@ -150,59 +137,31 @@ s32 main() {
     //   DrawText("raylib", half_screen_width - 44, half_screen_height + 48, 50, BLACK);
     // EndTextureMode();
 
-    f32 speed = 2;
-
-    // Plane pitch (x-axis) controls
-    if(IsKeyDown(KEY_S))      pitch += speed;
-    else if(IsKeyDown(KEY_W)) pitch -= speed;
-
-    // Plane yaw (y-axis) controls
-    if(IsKeyDown(KEY_D))      yaw -= speed;
-    else if(IsKeyDown(KEY_A)) yaw += speed;
-
-    // Plane roll (z-axis) controls
-    if(IsKeyDown(KEY_Q))      roll -= speed;
-    else if(IsKeyDown(KEY_E)) roll += speed;
-
     BeginDrawing();
     ClearBackground(GRAY);
 
-      BeginMode3D(camera3D);
-        // rlPushMatrix();
-          // rlRotatef(cube_rotation, 1, 0, 0);
-          // rlRotatef(cube_rotation, 0, 1, 0);
-          // rlRotatef(cube_rotation, 0, 0, 1);
-          // DrawCubeV(cube_position, {2, 2, 2}, RED);
-        // rlPopMatrix();
-        // DrawTriangle3D(cube_position, {0, 10, cube_position.z}, {5, 10, cube_position.z}, GREEN);
-
-        // DrawModel(model, {0, 0, 0}, 0.05f, WHITE);
-        DrawModel(model, {0, 0, 0}, 1.1f, WHITE);
-        // DrawGrid(100, 100);
-      EndMode3D();
-
       BeginMode2D(camera2D);
-        // DrawTexturePro(
-        //   render_texture.texture,
-        //   { 0, 0, (f32)render_texture.texture.width, (f32)render_texture.texture.height },
-        //   { (f32)0, (f32)0, (f32)1000, (f32)1000 },
-        //   {0,0}, 0, WHITE
-        // );
+        DrawTexturePro(
+          render_texture.texture,
+          { 0, 0, (f32)render_texture.texture.width, (f32)render_texture.texture.height },
+          { (f32)0, (f32)0, (f32)1000, (f32)1000 },
+          {0,0}, 0, WHITE
+        );
 
         if(engine_state == EngineState::TILE_SELECTION) {
-          // DrawTextureEx(tilemap, {}, 0, tilemap_scale, WHITE);
+          DrawTextureEx(tilemap, {}, 0, tilemap_scale, WHITE);
 
           for(u32 col = 0; col <= (u32)(tilemap.width / TILE_SIZE); col++) {
-            // DrawLineV({(f32)TILE_SIZE * tilemap_scale * col, 0}, {(f32)TILE_SIZE * tilemap_scale * col, (f32)tilemap.height * tilemap_scale}, WHITE);
+            DrawLineV({(f32)TILE_SIZE * tilemap_scale * col, 0}, {(f32)TILE_SIZE * tilemap_scale * col, (f32)tilemap.height * tilemap_scale}, WHITE);
           }
           for(u32 row = 0; row <= (u32)(tilemap.height / TILE_SIZE); row++) {
-            // DrawLineV({0, (f32)TILE_SIZE * tilemap_scale * row}, {(f32)tilemap.width * tilemap_scale, (f32)TILE_SIZE * tilemap_scale * row}, WHITE);
+            DrawLineV({0, (f32)TILE_SIZE * tilemap_scale * row}, {(f32)tilemap.width * tilemap_scale, (f32)TILE_SIZE * tilemap_scale * row}, WHITE);
           }
 
           for(u32 col = 0; col < (u32)(tilemap.width / TILE_SIZE); col++) {
             for(u32 row = 0; row < (u32)(tilemap.height / TILE_SIZE); row++) {
               if(CheckCollisionPointRec(mouse_position + camera2D.target, {col * TILE_SIZE * tilemap_scale, row * TILE_SIZE * tilemap_scale, TILE_SIZE * tilemap_scale, TILE_SIZE * tilemap_scale})) {
-                // DrawRectangleRec({col * TILE_SIZE * tilemap_scale, row * TILE_SIZE * tilemap_scale, TILE_SIZE * tilemap_scale, TILE_SIZE * tilemap_scale}, {0,255,0,(u8)(255*0.5)});
+                DrawRectangleRec({col * TILE_SIZE * tilemap_scale, row * TILE_SIZE * tilemap_scale, TILE_SIZE * tilemap_scale, TILE_SIZE * tilemap_scale}, {0,255,0,(u8)(255*0.5)});
 
                 if(engine_state == EngineState::LEVEL_EDITOR) {
                   continue;
@@ -216,41 +175,41 @@ s32 main() {
           for(u32 col = 0; col < level_width/tilemap_scale; col++) {
             for(u32 row = 0; row < level_height/tilemap_scale; row++) {
               f32 tile_scale = TILE_SIZE * 1;
-              // DrawTexturePro(tilemap, 
-              //   {
-              //     (f32)selected_tile_x * tile_scale,
-              //     (f32)selected_tile_y * tile_scale,
-              //     tile_scale, tile_scale
-              //   }, 
-              //   {
-              //     (f32)col * tile_scale * tilemap_scale + camera2D.target.x,
-              //     (f32)row * tile_scale * tilemap_scale + camera2D.target.y,
-              //     tile_scale * tilemap_scale, tile_scale * tilemap_scale
-              //   }, {0,0}, 0, WHITE);
+              DrawTexturePro(tilemap, 
+                {
+                  (f32)selected_tile_x * tile_scale,
+                  (f32)selected_tile_y * tile_scale,
+                  tile_scale, tile_scale
+                }, 
+                {
+                  (f32)col * tile_scale * tilemap_scale + camera2D.target.x,
+                  (f32)row * tile_scale * tilemap_scale + camera2D.target.y,
+                  tile_scale * tilemap_scale, tile_scale * tilemap_scale
+                }, {0,0}, 0, WHITE);
             }
           }
         }
 
       EndMode2D();
 
-      // DrawTexturePro(tilemap, {(f32)selected_tile_x*TILE_SIZE,(f32)selected_tile_y*TILE_SIZE,TILE_SIZE,TILE_SIZE}, {(f32)screen_width-110,10,100,100}, {0,0}, 0, WHITE);
+      DrawTexturePro(tilemap, {(f32)selected_tile_x*TILE_SIZE,(f32)selected_tile_y*TILE_SIZE,TILE_SIZE,TILE_SIZE}, {(f32)screen_width-110,10,100,100}, {0,0}, 0, WHITE);
 
       u32 font_size = 70;
       u8 spacing = 0;
 
-      // {
-      //   char* hello_world_text = i18n(dictionary_index, "hello_world");
-      //   Vector2 pos = {screen_center.x - MeasureTextEx(font, hello_world_text, font_size, spacing).x / 2, screen_center.y - font_size};
-      //   DrawTextEx(font, hello_world_text, pos, font_size, spacing, BLACK);
-      //   DrawTextEx(font, hello_world_text, pos + 3, font_size, spacing, WHITE);
-      // }
+      {
+        char* hello_world_text = i18n(dictionary_index, "hello_world");
+        Vector2 pos = {screen_center.x - MeasureTextEx(font, hello_world_text, font_size, spacing).x / 2, screen_center.y - font_size};
+        DrawTextEx(font, hello_world_text, pos, font_size, spacing, BLACK);
+        DrawTextEx(font, hello_world_text, pos + 3, font_size, spacing, WHITE);
+      }
 
-      // {
-      //   char* main_menu_play_text = i18n(dictionary_index, "main_menu_play");
-      //   Vector2 pos = {screen_center.x - MeasureTextEx(font, main_menu_play_text, font_size, spacing).x / 2, screen_center.y};
-      //   DrawTextEx(font, main_menu_play_text, pos, font_size, spacing, BLACK);
-      //   DrawTextEx(font, main_menu_play_text, pos + 3, font_size, spacing, WHITE);
-      // }
+      {
+        char* main_menu_play_text = i18n(dictionary_index, "main_menu_play");
+        Vector2 pos = {screen_center.x - MeasureTextEx(font, main_menu_play_text, font_size, spacing).x / 2, screen_center.y};
+        DrawTextEx(font, main_menu_play_text, pos, font_size, spacing, BLACK);
+        DrawTextEx(font, main_menu_play_text, pos + 3, font_size, spacing, WHITE);
+      }
 
       {
         char* hello_sailor_text = i18n(dictionary_index, "hello_sailor");
