@@ -16,6 +16,12 @@
 #include "src/screen.cpp"
 #include "src/text.cpp"
 
+// #define EXPORT_FONT 0
+
+#ifndef EXPORT_FONT
+#include "bundle/font.cpp"
+#endif
+
 #if 0
 #include "music.cpp"
 #endif
@@ -40,8 +46,12 @@ s32 main() {
   i18n_init();
   Languages dictionary_index = CN;
 
-  // const char* font_generated_file = "../font.cpp";
+  #ifdef EXPORT_FONT
   Font font = load_font();
+  #else
+  Font font = LoadFont_Font();
+  SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
+  #endif
 
   s32 *bin_size = (s32*)MemAlloc(sizeof(s32));
   #if 0
@@ -87,6 +97,12 @@ s32 main() {
   /// @todo:
   // asset embed
   // level editor
+
+  // #if EXPORT_FONT
+  // if(ExportFontAsCode(font, "../bundle/font.cpp")) {
+  //   puts("Success!");
+  // }
+  // #endif
 
   while (!WindowShouldClose()) {
     f32 dt = GetFrameTime();

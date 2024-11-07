@@ -75,8 +75,6 @@ Font load_font() {
   s32 count;
   s32* codepoints = LoadCodepoints(all_codepoints, &count);
   Font font = LoadFontEx("../fonts/noto_sans_chinese_regular.ttf", font_size, codepoints, count);
-  // Converted using https://transfonter.org/ttc-unpack
-  // Font font = LoadFontEx("../fonts/SimSun.ttf", font_size, codepoints, count);
   SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
   return font;
 }
