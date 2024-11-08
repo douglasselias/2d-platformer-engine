@@ -141,6 +141,32 @@ s32 main() {
     Vector2 mouse_position = GetMousePosition();
     UpdateMusicStream(music);
 
+    const char* level_bin_file_path = "../level.bin";
+    if(IsKeyPressed(KEY_S)) {
+      FILE* file = fopen("../level.txt", "w");
+
+      for(u32 col = 0; col < level_height; col++) {
+        for(u32 row = 0; row < level_width; row++) {
+          fprintf(file, "%f %f\n", level[col][row].x, level[col][row].y);
+        }
+      }
+
+      log("Level Saved");
+    }
+
+    if(IsKeyPressed(KEY_L)) {
+      FILE* file = fopen("../level.txt", "r");
+
+      for(u32 col = 0; col < level_height; col++) {
+        for(u32 row = 0; row < level_width; row++) {
+          f32 x, y;
+          fscanf(file, "%f", &x);
+          fscanf(file, "%f", &y);
+          level[col][row] = {x, y};
+        }
+      }
+    }
+
     if(IsKeyPressed(KEY_U)) {
       if(IsMusicStreamPlaying(music)) PauseMusicStream(music);
       else PlayMusicStream(music);
