@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "vendor/raylib.h"
 #include "vendor/rlgl.h"
@@ -51,8 +52,16 @@ enum class EngineState {
   TILE_SELECTION,
 };
 
+u64 hash_key_markov(const char *key, u64 length) {
+  u64 hash = 0;
+  while(length--) hash = hash * 31 + key[length];
+  return hash;
+}
+
 s32 main() {
-  puts("-----------\nGame Logs |\n__________|");
+  puts("-----------");
+  puts("Game Logs |");
+  puts("__________|");
 
   init_screen();
   init_i18n();
@@ -136,33 +145,111 @@ s32 main() {
   Vector2 last_pan_position = {};
   Vector2 current_pan_delta = {};
 
+  Vector2 player_position = {};
+
+  //// Markov
+  const u8 map_height = 12;
+  const u8 map_width = 12;
+
+  char input_map[] =
+    "111111111111"
+    "110001110001"
+    "111011111011"
+    "110101110101"
+    "101101101101"
+    "100101100101"
+    "110101110101"
+    "101001101001"
+    "111111111111"
+    "100111100111"
+    "111101111101"
+    "100101100101"
+  ;
+
+  const u64 map_area = map_height * map_width;
+  #define HASHTABLE_SIZE 4096
+  #define POSSIBILITIES_SIZE 50
+  char* ngrams[HASHTABLE_SIZE] = {};
+
+  const u8 order = 12;
+  for(u32 index = 0; index <= map_area - order; index++) {
+    char gram[order] = {};
+    memcpy(gram, &input_map[index], order);
+
+    u64 key = hash_key_markov(gram, order) % HASHTABLE_SIZE;
+    if(ngrams[key] == NULL) {
+      ngrams[key] = (char*)calloc(POSSIBILITIES_SIZE, sizeof(char));
+      memset(ngrams, '\0', POSSIBILITIES_SIZE);
+      ngrams[key][0] = input_map[index + order];
+    } else {
+      u64 n_size = strlen(ngrams[key]);
+      if(n_size == POSSIBILITIES_SIZE) continue; // full, moving on...
+      ngrams[key][n_size-1] = input_map[index + order];
+    }
+  }
+
+  char current_gram[order] = {};
+  memcpy(current_gram, &input_map, order);
+  char result[map_area] = {};
+  memset(ngrams, '\0', map_area);
+  memcpy(result, &current_gram, order);
+
+  for(u32 i = 0; i < map_area; i++) {
+    u64 key = hash_key_markov(current_gram, order) % HASHTABLE_SIZE;
+    char *possibilities = ngrams[key];
+    u64 p_len = strlen(possibilities);
+    if(p_len == 0) {
+      memcpy(current_gram, &input_map[i-order], order);
+      continue;
+    };
+    u64 random_index = GetRandomValue(0, p_len-1);
+    char next = possibilities[random_index];
+    u64 len = strlen(result);
+    result[len] = next;
+    memcpy(current_gram, result + len + 1 - order, order);
+  }
+
+  for(u64 index = 0; index < map_area; index += map_width) {
+    printf("Result: %.*s\n", map_width, result+index);
+  }
+
+  //// End Markov
+
   while(!WindowShouldClose()) {
     f32 dt = GetFrameTime();
     Vector2 mouse_position = GetMousePosition();
     UpdateMusicStream(music);
 
-    const char* level_bin_file_path = "../level.bin";
-    if(IsKeyPressed(KEY_S)) {
-      FILE* file = fopen("../level.txt", "w");
+    if(IsKeyPressed(KEY_P)) {
+      engine_state = EngineState::IN_GAME;
+    }
 
-      for(u32 col = 0; col < level_height; col++) {
-        for(u32 row = 0; row < level_width; row++) {
-          fprintf(file, "%f %f\n", level[col][row].x, level[col][row].y);
+    const char* level_file_path = "../level.txt";
+    if(IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) {
+      if(engine_state == EngineState::LEVEL_EDITOR) {
+        FILE* file = fopen(level_file_path, "w");
+
+        for(u32 col = 0; col < level_height; col++) {
+          for(u32 row = 0; row < level_width; row++) {
+            fprintf(file, "%f %f\n", level[col][row].x, level[col][row].y);
+          }
         }
-      }
 
-      log("Level Saved");
+        log("Level Saved");
+      }
     }
 
     if(IsKeyPressed(KEY_L)) {
-      FILE* file = fopen("../level.txt", "r");
+      if(engine_state == EngineState::LEVEL_EDITOR) {
+        FILE* file = fopen(level_file_path, "r");
 
-      for(u32 col = 0; col < level_height; col++) {
-        for(u32 row = 0; row < level_width; row++) {
-          f32 x, y;
-          fscanf(file, "%f", &x);
-          fscanf(file, "%f", &y);
-          level[col][row] = {x, y};
+        for(u32 col = 0; col < level_height; col++) {
+          for(u32 row = 0; row < level_width; row++) {
+            f32 x, y;
+            fscanf(file, "%f", &x);
+            fscanf(file, "%f", &y);
+            level[col][row] = {x, y};
+          }
         }
       }
     }
@@ -242,7 +329,8 @@ s32 main() {
     }
 
     BeginDrawing();
-    ClearBackground(GRAY);
+    if(engine_state == EngineState::IN_GAME) ClearBackground(BLACK);
+    else ClearBackground(GRAY);
 
       BeginMode2D(camera2D);
         if(engine_state == EngineState::TILE_SELECTION) {
@@ -288,13 +376,36 @@ s32 main() {
             }
             DrawLineV({(f32)TILE_SIZE * level_tile_scale * col, 0}, {(f32)TILE_SIZE * level_tile_scale * col, (f32)screen_height * level_tile_scale}, WHITE);
           }
+        } else if(engine_state == EngineState::IN_GAME) {
+          for(u32 col = 0; col < level_width; col++) {
+            for(u32 row = 0; row < level_height; row++) {
+              Vector2 tile_position = level[row][col];
+              if(!FloatEquals(tile_position.x, -1) && !FloatEquals(tile_position.y, -1)) {
+                DrawTexturePro(tilemap, 
+                  {
+                    (f32)tile_position.x * TILE_SIZE,
+                    (f32)tile_position.y * TILE_SIZE,
+                    TILE_SIZE, TILE_SIZE
+                  }, 
+                  {
+                    (f32)col * TILE_SIZE * level_tile_scale + camera2D.target.x,
+                    (f32)row * TILE_SIZE * level_tile_scale + camera2D.target.y,
+                    TILE_SIZE * level_tile_scale, TILE_SIZE * level_tile_scale
+                  }, {0,0}, 0, WHITE);
+              }
+              // DrawLineV({0, (f32)TILE_SIZE * level_tile_scale * row}, {(f32)screen_width * level_tile_scale, (f32)TILE_SIZE * level_tile_scale * row}, WHITE);
+            }
+            // DrawLineV({(f32)TILE_SIZE * level_tile_scale * col, 0}, {(f32)TILE_SIZE * level_tile_scale * col, (f32)screen_height * level_tile_scale}, WHITE);
+          }
         }
 
       EndMode2D();
 
-      DrawTexturePro(tilemap,
-        {selected_tile.x * TILE_SIZE,selected_tile.y * TILE_SIZE,TILE_SIZE,TILE_SIZE},
-        selected_tile_rect, {0,0}, 0, {255, 255, 255, (u8)(255 * selected_tile_alpha)});
+      if(engine_state != EngineState::IN_GAME) {
+        DrawTexturePro(tilemap,
+          {selected_tile.x * TILE_SIZE,selected_tile.y * TILE_SIZE,TILE_SIZE,TILE_SIZE},
+          selected_tile_rect, {0,0}, 0, {255, 255, 255, (u8)(255 * selected_tile_alpha)});
+      }
 
       u32 font_size = 70;
       u8 spacing = 0;

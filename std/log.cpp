@@ -10,6 +10,14 @@ void log(const char* name, Vector2 vector) {
   puts(TextFormat("%s: (%.3f, %.3f)", name, (f64)vector.x, (f64)vector.y));
 }
 
+void log(const char* name, Vector3 vector) {
+  TraceLog(LOG_WARNING, TextFormat("%s: (%.3f, %.3f, %.3f)", name, (f64)vector.x, (f64)vector.y, (f64)vector.z));
+}
+
+void log(const char* name, Vector4 vector) {
+  TraceLog(LOG_WARNING, TextFormat("%s: (%.3f, %.3f, %.3f, %.3f)", name, (f64)vector.x, (f64)vector.y, (f64)vector.z, (f64)vector.w));
+}
+
 #define declare_float_log(type) \
 void log(const char* name, type value) { \
   puts(TextFormat("%s: %.3f", name, (f64)value)); \
