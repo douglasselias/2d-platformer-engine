@@ -80,7 +80,7 @@ Font load_font() {
   }
   u32 chinese_chars_bytes = sizeof(char) * bytes_of_chinese_char * total_chars;
 
-  char* alphabet = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM?!@#$%&().;>:<,[]{}/'";
+  char* alphabet = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM?!@#$%&().;>:<,[]{}/'";
   u32 alphabet_bytes = (u32)strlen(alphabet) * sizeof(char);
   char* all_codepoints = (char*)MemAlloc(alphabet_bytes + chinese_chars_bytes);
 

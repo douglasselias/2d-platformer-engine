@@ -52,12 +52,6 @@ enum class EngineState {
   TILE_SELECTION,
 };
 
-u64 hash_key_markov(const char *key, u64 length) {
-  u64 hash = 0;
-  while(length--) hash = hash * 31 + key[length];
-  return hash;
-}
-
 s32 main() {
   puts("-----------");
   puts("Game Logs |");
@@ -96,7 +90,7 @@ s32 main() {
   Music music = LoadMusicStreamFromMemory(".wav", decompressed_music, *decompressed_music_size);
   #endif
 
-  const char* tilemap_image_path = "../gfx/monochrome_tilemap_packed.png";
+  const char* tilemap_image_path = "../gfx/monochrome_tilemap_transparent_packed.png";
   #if DEV == 1
   Texture2D tilemap = LoadTexture(tilemap_image_path);
   #elif EXPORT_IMG == 1
@@ -146,74 +140,50 @@ s32 main() {
   Vector2 current_pan_delta = {};
 
   Vector2 player_position = {};
+  Vector2 player_velocity = {};
 
-  //// Markov
-  const u8 map_height = 12;
-  const u8 map_width = 12;
+  enum class TileType {
+    NOT_ASSIGNED,
+    GROUND,
+    PLAYER,
+    ///..... add more here.....
+  };
+  // IF VALUE > NOT ASSIGNED { CHECK COLLISION }
 
-  char input_map[] =
-    "111111111111"
-    "110001110001"
-    "111011111011"
-    "110101110101"
-    "101101101101"
-    "100101100101"
-    "110101110101"
-    "101001101001"
-    "111111111111"
-    "100111100111"
-    "111101111101"
-    "100101100101"
-  ;
+  TileType tilemap_types[20][20] = {
+    {},
+    {},
+    {},
+    {},
+    {TileType::NOT_ASSIGNED,TileType::NOT_ASSIGNED,TileType::NOT_ASSIGNED,TileType::NOT_ASSIGNED,TileType::NOT_ASSIGNED,TileType::NOT_ASSIGNED,TileType::GROUND,TileType::GROUND,TileType::GROUND,},
+    {TileType::NOT_ASSIGNED,TileType::NOT_ASSIGNED,TileType::NOT_ASSIGNED,TileType::NOT_ASSIGNED,TileType::NOT_ASSIGNED,TileType::NOT_ASSIGNED,TileType::GROUND,TileType::GROUND,TileType::GROUND,},
+    {TileType::NOT_ASSIGNED,TileType::NOT_ASSIGNED,TileType::NOT_ASSIGNED,TileType::NOT_ASSIGNED,TileType::NOT_ASSIGNED,TileType::NOT_ASSIGNED,TileType::GROUND,TileType::GROUND,TileType::GROUND,},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {TileType::PLAYER,TileType::PLAYER,TileType::PLAYER,TileType::PLAYER,TileType::PLAYER,TileType::PLAYER},
+    {TileType::PLAYER,TileType::PLAYER,TileType::PLAYER,TileType::PLAYER,TileType::PLAYER,TileType::PLAYER},
+    {TileType::PLAYER,TileType::PLAYER,TileType::PLAYER,TileType::PLAYER,TileType::PLAYER,TileType::PLAYER},
+    {TileType::PLAYER,TileType::PLAYER,TileType::PLAYER,TileType::PLAYER,TileType::PLAYER,TileType::PLAYER},
+    {},
+    {},
+    {},
+    {},
+  };
 
-  const u64 map_area = map_height * map_width;
-  #define HASHTABLE_SIZE 4096
-  #define POSSIBILITIES_SIZE 50
-  char* ngrams[HASHTABLE_SIZE] = {};
+  enum class EditorTileType {
+    DEFAULT_ONE_TILE,
+    HORIZONTAL_ONLY,
+    VERTICAL_ONLY,
+    NINE_PATCH,
+  };
 
-  const u8 order = 12;
-  for(u32 index = 0; index <= map_area - order; index++) {
-    char gram[order] = {};
-    memcpy(gram, &input_map[index], order);
-
-    u64 key = hash_key_markov(gram, order) % HASHTABLE_SIZE;
-    if(ngrams[key] == NULL) {
-      ngrams[key] = (char*)calloc(POSSIBILITIES_SIZE, sizeof(char));
-      memset(ngrams, '\0', POSSIBILITIES_SIZE);
-      ngrams[key][0] = input_map[index + order];
-    } else {
-      u64 n_size = strlen(ngrams[key]);
-      if(n_size == POSSIBILITIES_SIZE) continue; // full, moving on...
-      ngrams[key][n_size-1] = input_map[index + order];
-    }
-  }
-
-  char current_gram[order] = {};
-  memcpy(current_gram, &input_map, order);
-  char result[map_area] = {};
-  memset(ngrams, '\0', map_area);
-  memcpy(result, &current_gram, order);
-
-  for(u32 i = 0; i < map_area; i++) {
-    u64 key = hash_key_markov(current_gram, order) % HASHTABLE_SIZE;
-    char *possibilities = ngrams[key];
-    u64 p_len = strlen(possibilities);
-    if(p_len == 0) {
-      memcpy(current_gram, &input_map[i-order], order);
-      continue;
-    };
-    u64 random_index = GetRandomValue(0, p_len-1);
-    char next = possibilities[random_index];
-    u64 len = strlen(result);
-    result[len] = next;
-    memcpy(current_gram, result + len + 1 - order, order);
-  }
-
-  for(u64 index = 0; index < map_area; index += map_width) {
-    printf("Result: %.*s\n", map_width, result+index);
-  }
-
-  //// End Markov
+  EditorTileType editor_tile_type = EditorTileType::DEFAULT_ONE_TILE;
+  Vector2 start_position = {};
+  Vector2 end_position = {};
+  bool started_dragging = false;
 
   while(!WindowShouldClose()) {
     f32 dt = GetFrameTime();
@@ -249,6 +219,12 @@ s32 main() {
             fscanf(file, "%f", &x);
             fscanf(file, "%f", &y);
             level[col][row] = {x, y};
+
+            /// @todo: getting player position, kinda a hack
+            if((u32)x == 0 && (u32)y == 12) {
+              player_position = {x, y};
+              log("Found player");
+            }
           }
         }
       }
@@ -290,7 +266,88 @@ s32 main() {
         Vector2 level_position = (mouse_position + camera2D.target) / (TILE_SIZE * level_tile_scale);
         u32 x = (u32)floor(Clamp(level_position.x, 0, level_width));
         u32 y = (u32)floor(Clamp(level_position.y, 0, level_height));
-        level[y][x] = selected_tile;
+
+        if(started_dragging == false) {
+          start_position = {(f32)x, (f32)y};
+          started_dragging = true;
+          log("Selected Tile", selected_tile);
+          if(4 <= selected_tile.y && selected_tile.y <= 6
+          && 7 <= selected_tile.x && selected_tile.x <= 9) {
+            editor_tile_type = EditorTileType::NINE_PATCH;
+          } else if(3 <= selected_tile.y && selected_tile.y <= 7
+                 && 3 <= selected_tile.x && selected_tile.x <= 6) {
+                  editor_tile_type = EditorTileType::HORIZONTAL_ONLY;
+                  level[y][x] = {3,selected_tile.y};
+                 } else {
+                    editor_tile_type = EditorTileType::DEFAULT_ONE_TILE;
+                    level[y][x] = selected_tile;
+                 }
+        } else {
+          /// @note: is dragging, mouse down
+          if(!FloatEquals(start_position.x, x) || !FloatEquals(start_position.y, y)) {
+
+          /// @note: hmmmmm, too hardcoded...
+            switch(editor_tile_type) {
+              case EditorTileType::DEFAULT_ONE_TILE: { level[y][x] = selected_tile; break; };
+              case EditorTileType::HORIZONTAL_ONLY: {
+                if(x > start_position.x) {
+                  /// @note: right
+                  level[(u32)start_position.y][(u32)start_position.x] = {4,(f32)selected_tile.y};
+                  for(u32 ii = 0; ii < x - start_position.x; ii++) {
+                    level[(u32)start_position.y][(u32)start_position.x+ii+1] = {5,(f32)selected_tile.y};
+                  }
+                  level[(u32)start_position.y][x] = {6,(f32)selected_tile.y};
+                }
+                if(x < start_position.x) {
+                  /// @note: left
+                  level[(u32)start_position.y][(u32)start_position.x] = {6,(f32)selected_tile.y};
+                  for(u32 ii = 0; ii < start_position.x - x; ii++) {
+                    level[(u32)start_position.y][(u32)start_position.x-ii-1] = {5,(f32)selected_tile.y};
+                  }
+                  level[(u32)start_position.y][x] = {4,(f32)selected_tile.y};
+                }
+                // if(y > start_position.y) {
+                //   /// @note: down
+                // }
+                // if(y < start_position.y) {
+                //   /// @note: up
+                // }
+                break;
+              };
+              case EditorTileType::VERTICAL_ONLY: { break; };
+              case EditorTileType::NINE_PATCH: { break; };
+            }
+          }
+          // if(start_position.x < x) {
+            // level[y][x] = {4,3};
+          // }
+          // end_position = {x,y};
+        }
+      }
+    }
+
+    if(IsMouseButtonReleased(0)) {
+      if(engine_state == EngineState::LEVEL_EDITOR) {
+        if(started_dragging && (editor_tile_type == EditorTileType::HORIZONTAL_ONLY)) {
+          Vector2 level_position = (mouse_position + camera2D.target) / (TILE_SIZE * level_tile_scale);
+          u32 x = (u32)floor(Clamp(level_position.x, 0, level_width));
+          u32 y = (u32)floor(Clamp(level_position.y, 0, level_height));
+
+          end_position = {(f32)x, (f32)y};
+          if(x < start_position.x) {
+            level[y][x] = {4,(f32)selected_tile.y};
+          }
+          if(x > start_position.x) {
+            level[y][x] = {6,(f32)selected_tile.y};
+          }
+          // if(y < start_position.y) {
+          //   level[y][x] = {6,3};
+          // }
+          // if(y > start_position.y) {
+          //   level[y][x] = {6,3};
+          // }
+          started_dragging = false;
+        }
       }
     }
 
@@ -328,9 +385,46 @@ s32 main() {
       dictionary_index = dictionary_index == EN ? CN : EN;
     }
 
+    u32 gravity = 500;
+    s32 jump_force = gravity * -1.7;
+
+    if(IsKeyPressed(KEY_SPACE)) {
+      if(engine_state == EngineState::IN_GAME) {
+        // f32 x_grid = x * TILE_SIZE * level_tile_scale + camera2D.target.x + player_position.x;
+        // f32 y_grid = y * TILE_SIZE * level_tile_scale + camera2D.target.y + player_position.y;
+
+        u32 x_grid = player_position.x / (TILE_SIZE * level_tile_scale);
+        u32 y_grid = player_position.y / (TILE_SIZE * level_tile_scale);
+
+        u32 x = Clamp(x_grid, 0, 19);
+        u32 y = Clamp(y_grid + 1, 0, 19);
+        if(tilemap_types[y][x] == TileType::GROUND) {
+          log("jump man");
+          player_velocity.y = jump_force;
+        }
+        // player_position.y += player_velocity.y * dt + (jump_force/2) * dt * dt;
+      }
+    }
+
+    /// @note: update()
+    if(engine_state == EngineState::IN_GAME) {
+      u32 x_grid = player_position.x / level_width;
+      u32 y_grid = player_position.y / level_height;
+      u32 x = Clamp(x_grid, 0, 19);
+      u32 y = Clamp(y_grid, 0, 19);
+      if(tilemap_types[y][x] != TileType::GROUND) {
+        player_velocity.y += gravity * dt;
+      } else if(tilemap_types[y][x] == TileType::GROUND) {
+        log("hit ground");
+        player_velocity.y = 0;
+      }
+      // player_position.y += player_velocity.y * dt + (gravity/2) * dt * dt;
+      player_position.y += player_velocity.y * dt;
+    }
+
     BeginDrawing();
     if(engine_state == EngineState::IN_GAME) ClearBackground(BLACK);
-    else ClearBackground(GRAY);
+    else ClearBackground(BLUE);
 
       BeginMode2D(camera2D);
         if(engine_state == EngineState::TILE_SELECTION) {
@@ -381,6 +475,17 @@ s32 main() {
             for(u32 row = 0; row < level_height; row++) {
               Vector2 tile_position = level[row][col];
               if(!FloatEquals(tile_position.x, -1) && !FloatEquals(tile_position.y, -1)) {
+                /// @todo: very hacky thing, beware
+                Vector2 target_position = {
+                  (f32)col * TILE_SIZE * level_tile_scale + camera2D.target.x,
+                  (f32)row * TILE_SIZE * level_tile_scale + camera2D.target.y
+                };
+                if((u32)tile_position.x == 0 && (u32)tile_position.y == 12) {
+                  target_position += player_position;
+                        u32 font_size = 70;
+      u8 spacing = 0;
+                  DrawTextEx(font, TextFormat("{%f, %f}", player_position.x, player_position.y), {0,0}, font_size, spacing, MAGENTA);
+                }
                 DrawTexturePro(tilemap, 
                   {
                     (f32)tile_position.x * TILE_SIZE,
@@ -388,10 +493,12 @@ s32 main() {
                     TILE_SIZE, TILE_SIZE
                   }, 
                   {
-                    (f32)col * TILE_SIZE * level_tile_scale + camera2D.target.x,
-                    (f32)row * TILE_SIZE * level_tile_scale + camera2D.target.y,
+                    target_position.x,
+                    target_position.y,
                     TILE_SIZE * level_tile_scale, TILE_SIZE * level_tile_scale
                   }, {0,0}, 0, WHITE);
+
+
               }
               // DrawLineV({0, (f32)TILE_SIZE * level_tile_scale * row}, {(f32)screen_width * level_tile_scale, (f32)TILE_SIZE * level_tile_scale * row}, WHITE);
             }
