@@ -7,6 +7,9 @@
 #include "vendor/rlgl.h"
 #include "vendor/raymath.h"
 
+#define RAYGUI_IMPLEMENTATION
+#include "vendor/raygui.h"
+
 #include "std/types.cpp"
 #include "std/vector_overload.cpp"
 #include "std/log.cpp"
@@ -185,10 +188,27 @@ s32 main() {
   Vector2 end_position = {};
   bool started_dragging = false;
 
+  /// @note: copied from https://gist.github.com/sjvnnings/5f02d2f2fc417f3804e967daa73cccfd
+  f32 move_speed = 200;
+  // Vector2 velocity = {};
+
+  f32 jump_height = 100;
+  f32 jump_time_to_peak = 0.5;
+  f32 jump_time_to_descent = 0.4;
+
+  /// @note: end of note
+
+  bool showMessageBox = false;
+  GuiLoadStyle("../vendor/style_dark.rgs");
+
   while(!WindowShouldClose()) {
     f32 dt = GetFrameTime();
     Vector2 mouse_position = GetMousePosition();
     UpdateMusicStream(music);
+
+    f32 jump_velocity = ((2 * jump_height) / jump_time_to_peak) * -1;
+    f32 jump_gravity = ((-2 * jump_height) / (jump_time_to_peak * jump_time_to_peak)) * -1;
+    f32 fall_gravity = ((-2 * jump_height) / (jump_time_to_descent * jump_time_to_descent)) * -1;
 
     if(IsKeyPressed(KEY_P)) {
       engine_state = EngineState::IN_GAME;
@@ -385,41 +405,66 @@ s32 main() {
       dictionary_index = dictionary_index == EN ? CN : EN;
     }
 
-    u32 gravity = 500;
-    s32 jump_force = gravity * -1.7;
+    s32 speed = 300;
+    if(IsKeyDown(KEY_A)) player_velocity.x -= speed * dt;
+    else if(IsKeyDown(KEY_D)) player_velocity.x += speed * dt;
+    else {
+      if(FloatEquals(player_velocity.y, 0))
+        player_velocity.x *= 0.9;
+    }
+
+    player_velocity.x = Clamp(player_velocity.x, -speed, speed);
 
     if(IsKeyPressed(KEY_SPACE)) {
       if(engine_state == EngineState::IN_GAME) {
+        log("pressed space");
         // f32 x_grid = x * TILE_SIZE * level_tile_scale + camera2D.target.x + player_position.x;
         // f32 y_grid = y * TILE_SIZE * level_tile_scale + camera2D.target.y + player_position.y;
 
-        u32 x_grid = player_position.x / (TILE_SIZE * level_tile_scale);
-        u32 y_grid = player_position.y / (TILE_SIZE * level_tile_scale);
+        // u32 x_grid = player_position.x / (TILE_SIZE * level_tile_scale);
+        // u32 y_grid = player_position.y / (TILE_SIZE * level_tile_scale);
 
-        u32 x = Clamp(x_grid, 0, 19);
-        u32 y = Clamp(y_grid + 1, 0, 19);
-        if(tilemap_types[y][x] == TileType::GROUND) {
+        // u32 x = Clamp(x_grid, 0, 19);
+        // u32 y = Clamp(y_grid + 1, 0, 19);
+        f32 scaled_tile_size = TILE_SIZE * level_tile_scale;
+        if(CheckCollisionRecs({player_position.x,player_position.y,scaled_tile_size,scaled_tile_size}, {0,screen_height-scaled_tile_size*2, screen_width, scaled_tile_size*2})) {
           log("jump man");
-          player_velocity.y = jump_force;
+          player_velocity.y = jump_velocity;
+          /// @todo: super hacky!!!! duplicate code
+          player_position.y += player_velocity.y * dt;
         }
-        // player_position.y += player_velocity.y * dt + (jump_force/2) * dt * dt;
       }
     }
 
     /// @note: update()
     if(engine_state == EngineState::IN_GAME) {
-      u32 x_grid = player_position.x / level_width;
-      u32 y_grid = player_position.y / level_height;
-      u32 x = Clamp(x_grid, 0, 19);
-      u32 y = Clamp(y_grid, 0, 19);
-      if(tilemap_types[y][x] != TileType::GROUND) {
-        player_velocity.y += gravity * dt;
-      } else if(tilemap_types[y][x] == TileType::GROUND) {
-        log("hit ground");
+      // u32 x_grid = player_position.x / level_width;
+      // u32 y_grid = player_position.y / level_height;
+      // u32 x = Clamp(x_grid, 0, 19);
+      // u32 y = Clamp(y_grid, 0, 19);
+      // if(tilemap_types[y][x] != TileType::GROUND) {
+      // } else if(tilemap_types[y][x] == TileType::GROUND) {
+      //   log("hit ground");
+      //   player_velocity.y = 0;
+      // }
+      // player_position.y += player_velocity.y * dt;
+
+      f32 scaled_tile_size = TILE_SIZE * level_tile_scale;
+      Rectangle ground = {0,screen_height-scaled_tile_size*2, screen_width, scaled_tile_size*2};
+      bool hit_ground = CheckCollisionRecs({player_position.x,player_position.y,scaled_tile_size,scaled_tile_size}, ground);
+
+      if(hit_ground) {
+        // log("hit ground");
         player_velocity.y = 0;
+        player_position.y = ground.y - scaled_tile_size + 1;
+      } else {
+        log("falling");
+        f32 g = player_velocity.y < 0 ? jump_gravity : fall_gravity;
+        player_velocity.y += g * dt;
       }
-      // player_position.y += player_velocity.y * dt + (gravity/2) * dt * dt;
+
       player_position.y += player_velocity.y * dt;
+      player_position.x += player_velocity.x * dt;
     }
 
     BeginDrawing();
@@ -481,10 +526,11 @@ s32 main() {
                   (f32)row * TILE_SIZE * level_tile_scale + camera2D.target.y
                 };
                 if((u32)tile_position.x == 0 && (u32)tile_position.y == 12) {
-                  target_position += player_position;
-                        u32 font_size = 70;
-      u8 spacing = 0;
-                  DrawTextEx(font, TextFormat("{%f, %f}", player_position.x, player_position.y), {0,0}, font_size, spacing, MAGENTA);
+                  target_position = player_position;
+                  u32 font_size = 70;
+                  u8 spacing = 0;
+                  DrawTextEx(font, TextFormat("{%f, %f}", target_position.x, target_position.y), {0,0}, font_size, spacing, MAGENTA);
+                  DrawTextEx(font, TextFormat("{%f, %f}", player_velocity.x, player_velocity.y), {0,(f32)font_size}, font_size, spacing, MAGENTA);
                 }
                 DrawTexturePro(tilemap, 
                   {
@@ -539,6 +585,27 @@ s32 main() {
       //   DrawTextEx(font, hello_sailor_text, pos, font_size, spacing, BLACK);
       //   DrawTextEx(font, hello_sailor_text, pos + 3, font_size, spacing, WHITE);
       // }
+
+      f32 scaled_tile_size = TILE_SIZE * level_tile_scale;
+      Rectangle p = {player_position.x,player_position.y,scaled_tile_size,scaled_tile_size};
+      Rectangle ground = {0,screen_height-scaled_tile_size*2, screen_width, scaled_tile_size*2};
+      DrawRectangleLinesEx(p, 3, MAGENTA);
+      DrawRectangleLinesEx(ground, 3, GOLD);
+
+      if(GuiButton({24, 24, 120, 30}, "#191#Show Message")) showMessageBox = true;
+
+      if(showMessageBox) {
+        s32 result = GuiMessageBox({85, 70, 250, 100}, "#191#Message Box", "Hi! This is a message!", "Nice;Cool");
+        // log("Result: %d");
+
+        if(result >= 0) showMessageBox = false;
+      }
+
+      GuiSlider({ screen_width/2, screen_height/2 - 300, 200, 70 }, NULL, TextFormat("jump_height: %.2fs", jump_height), &jump_height, 1, 1000);
+
+      GuiSlider({ screen_width/2, screen_height/2 - 200, 200, 70 }, NULL, TextFormat("jump_time_to_peak: %.2fs", jump_time_to_peak), &jump_time_to_peak, 0, 1);
+
+      GuiSlider({ screen_width/2, screen_height/2, 200, 70 }, NULL, TextFormat("jump_time_to_descent: %.2fs", jump_time_to_descent), &jump_time_to_descent, 0, 1);
 
     EndDrawing();
   }
