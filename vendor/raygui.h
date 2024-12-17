@@ -2621,8 +2621,8 @@ int GuiTextBox(Rectangle bounds, char *text, int bufferSize, bool editMode)
             if (CheckCollisionPointRec(mousePosition, textBounds))     // Mouse hover text
             {
                 float scaleFactor = (float)GuiGetStyle(DEFAULT, TEXT_SIZE)/(float)guiFont.baseSize;
-                int codepoint = 0;
-                int codepointSize = 0;
+                int codepoint_ = 0;
+                int codepointSize_ = 0;
                 int codepointIndex = 0;
                 float glyphWidth = 0.0f;
                 float widthToMouseX = 0;
@@ -2630,8 +2630,8 @@ int GuiTextBox(Rectangle bounds, char *text, int bufferSize, bool editMode)
 
                 for (int i = textIndexOffset; i < textLength; i++)
                 {
-                    codepoint = GetCodepointNext(&text[i], &codepointSize);
-                    codepointIndex = GetGlyphIndex(guiFont, codepoint);
+                    codepoint_ = GetCodepointNext(&text[i], &codepointSize_);
+                    codepointIndex = GetGlyphIndex(guiFont, codepoint_);
 
                     if (guiFont.glyphs[codepointIndex].advanceX == 0) glyphWidth = ((float)guiFont.recs[codepointIndex].width*scaleFactor);
                     else glyphWidth = ((float)guiFont.glyphs[codepointIndex].advanceX*scaleFactor);
@@ -2651,7 +2651,7 @@ int GuiTextBox(Rectangle bounds, char *text, int bufferSize, bool editMode)
                 if (GetMousePosition().x >= (textBounds.x + textEndWidth - glyphWidth/2))
                 {
                     mouseCursor.x = textBounds.x + textEndWidth;
-                    mouseCursorIndex = strlen(text);
+                    mouseCursorIndex = (int)strlen(text);
                 }
 
                 // Place cursor at required index on mouse click
@@ -4359,7 +4359,7 @@ static void GuiLoadStyleFromMemory(const unsigned char *fileData, int dataSize)
                 // NOTE: All DEFAULT properties should be defined first in the file
                 GuiSetStyle(0, (int)propertyId, propertyValue);
 
-                if (propertyId < RAYGUI_MAX_PROPS_BASE) for (int i = 1; i < RAYGUI_MAX_CONTROLS; i++) GuiSetStyle(i, (int)propertyId, propertyValue);
+                if (propertyId < RAYGUI_MAX_PROPS_BASE) for (int ii = 1; ii < RAYGUI_MAX_CONTROLS; ii++) GuiSetStyle(ii, (int)propertyId, propertyValue);
             }
             else GuiSetStyle((int)controlId, (int)propertyId, propertyValue);
         }
