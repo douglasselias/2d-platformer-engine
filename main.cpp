@@ -1,8 +1,3 @@
-#include <stdio.h>
-#include <time.h>
-#include <string.h>
-#include <stdlib.h>
-
 #include "vendor/raylib.h"
 #include "vendor/rlgl.h"
 #include "vendor/raymath.h"
@@ -49,12 +44,6 @@
 #include "src/screen.cpp"
 #include "src/text.cpp"
 
-enum class EngineState {
-  IN_GAME,
-  LEVEL_EDITOR,
-  TILE_SELECTION,
-};
-
 s32 main() {
   puts("-----------");
   puts("Game Logs |");
@@ -63,7 +52,15 @@ s32 main() {
   init_screen();
   init_i18n();
 
-  EngineState engine_state = EngineState::TILE_SELECTION;
+  GuiLoadStyle("../vendor/style_dark.rgs");
+
+  enum class EngineState {
+    IN_GAME,
+    LEVEL_EDITOR,
+    TILE_SELECTION,
+  };
+
+  EngineState engine_state = EngineState::LEVEL_EDITOR;
   Languages dictionary_index = CN;
 
   #if DEV == 1
@@ -142,14 +139,11 @@ s32 main() {
   Vector2 last_pan_position = {};
   Vector2 current_pan_delta = {};
 
-  Vector2 player_position = {};
-  Vector2 player_velocity = {};
-
   enum class TileType {
     NOT_ASSIGNED,
     GROUND,
     PLAYER,
-    ///..... add more here.....
+    /// @note: Add more here...
   };
   // IF VALUE > NOT ASSIGNED { CHECK COLLISION }
 
@@ -188,163 +182,197 @@ s32 main() {
   Vector2 end_position = {};
   bool started_dragging = false;
 
-  /// @note: copied from https://gist.github.com/sjvnnings/5f02d2f2fc417f3804e967daa73cccfd
+  /// @note: Copied from https://gist.github.com/sjvnnings/5f02d2f2fc417f3804e967daa73cccfd
+  Vector2 player_position = {};
+  Vector2 player_velocity = {};
   f32 move_speed = 200;
-  // Vector2 velocity = {};
 
   f32 jump_height = 100;
-  f32 jump_time_to_peak = 0.5;
+  f32 jump_time_to_peak    = 0.5;
   f32 jump_time_to_descent = 0.4;
-
-  /// @note: end of note
+  /// @note: End of note
 
   bool showMessageBox = false;
-  GuiLoadStyle("../vendor/style_dark.rgs");
+  f32 cooldown_timer = 0;
 
   while(!WindowShouldClose()) {
     f32 dt = GetFrameTime();
     Vector2 mouse_position = GetMousePosition();
     UpdateMusicStream(music);
 
-    f32 jump_velocity = ((2 * jump_height) / jump_time_to_peak) * -1;
-    f32 jump_gravity = ((-2 * jump_height) / (jump_time_to_peak * jump_time_to_peak)) * -1;
-    f32 fall_gravity = ((-2 * jump_height) / (jump_time_to_descent * jump_time_to_descent)) * -1;
+    /// @todo: Move closer to where it is being used in the update section.
+    f32 jump_velocity = -1 * (( 2 * jump_height) / jump_time_to_peak);
+    f32 jump_gravity  = -1 * ((-2 * jump_height) / (jump_time_to_peak * jump_time_to_peak));
+    f32 fall_gravity  = -1 * ((-2 * jump_height) / (jump_time_to_descent * jump_time_to_descent));
 
-    if(IsKeyPressed(KEY_P)) {
+    const char* level_file_path = "../level.txt";
+
+    if(IsKeyPressed(KEY_ONE)) {
+      engine_state = EngineState::TILE_SELECTION;
+      camera2D.target = current_pan_delta;
+    }
+
+    if(IsKeyPressed(KEY_TWO)) {
+      engine_state = EngineState::LEVEL_EDITOR;
+    }
+
+    if(IsKeyPressed(KEY_THREE)) {
       engine_state = EngineState::IN_GAME;
     }
 
-    const char* level_file_path = "../level.txt";
-    if(IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) {
-      if(engine_state == EngineState::LEVEL_EDITOR) {
-        FILE* file = fopen(level_file_path, "w");
+    if(IsKeyPressed(KEY_C)) {
+      /// @todo: Cycle trough the available languages.
+      dictionary_index = dictionary_index == EN ? CN : EN;
+    }
 
-        for(u32 col = 0; col < level_height; col++) {
-          for(u32 row = 0; row < level_width; row++) {
-            fprintf(file, "%f %f\n", level[col][row].x, level[col][row].y);
+    /// @note: Input(); 
+    switch(engine_state) {
+      case EngineState::IN_GAME: {
+      } break;
+
+      case EngineState::LEVEL_EDITOR: {
+        if(IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) {
+          FILE* file = fopen(level_file_path, "w");
+
+          for(u32 col = 0; col < level_height; col++) {
+            for(u32 row = 0; row < level_width; row++) {
+              fprintf(file, "%f %f\n", level[col][row].x, level[col][row].y);
+            }
+          }
+
+          log("Level saved");
+        }
+
+        if(IsMouseButtonDown(0) && FloatEquals(cooldown_timer, 0)) {
+          Vector2 level_position = (mouse_position + camera2D.target) / (TILE_SIZE * level_tile_scale);
+          u32 x = (u32)floor(Clamp(level_position.x, 0, level_width));
+          u32 y = (u32)floor(Clamp(level_position.y, 0, level_height));
+
+          if(started_dragging == false) {
+            start_position = {(f32)x, (f32)y};
+            started_dragging = true;
+            log("Selected Tile", selected_tile);
+            if(4 <= selected_tile.y && selected_tile.y <= 6
+            && 7 <= selected_tile.x && selected_tile.x <= 9) {
+              editor_tile_type = EditorTileType::NINE_PATCH;
+            } else if(3 <= selected_tile.y && selected_tile.y <= 7
+                  && 3 <= selected_tile.x && selected_tile.x <= 6) {
+                    editor_tile_type = EditorTileType::HORIZONTAL_ONLY;
+                    level[y][x] = {3,selected_tile.y};
+                  } else {
+                      editor_tile_type = EditorTileType::DEFAULT_ONE_TILE;
+                      level[y][x] = selected_tile;
+                  }
+          } else {
+            /// @note: is dragging, mouse down
+            if(!FloatEquals(start_position.x, x) || !FloatEquals(start_position.y, y)) {
+
+            /// @note: hmmmmm, too hardcoded...
+              switch(editor_tile_type) {
+                case EditorTileType::DEFAULT_ONE_TILE: { level[y][x] = selected_tile; break; };
+                case EditorTileType::HORIZONTAL_ONLY: {
+                  if(x > start_position.x) {
+                    /// @note: right
+                    level[(u32)start_position.y][(u32)start_position.x] = {4,(f32)selected_tile.y};
+                    for(u32 ii = 0; ii < x - start_position.x; ii++) {
+                      level[(u32)start_position.y][(u32)start_position.x+ii+1] = {5,(f32)selected_tile.y};
+                    }
+                    level[(u32)start_position.y][x] = {6,(f32)selected_tile.y};
+                  }
+                  if(x < start_position.x) {
+                    /// @note: left
+                    level[(u32)start_position.y][(u32)start_position.x] = {6,(f32)selected_tile.y};
+                    for(u32 ii = 0; ii < start_position.x - x; ii++) {
+                      level[(u32)start_position.y][(u32)start_position.x-ii-1] = {5,(f32)selected_tile.y};
+                    }
+                    level[(u32)start_position.y][x] = {4,(f32)selected_tile.y};
+                  }
+                  break;
+                };
+                case EditorTileType::VERTICAL_ONLY: { break; };
+                case EditorTileType::NINE_PATCH: { break; };
+              }
+            }
+            // if(start_position.x < x) {
+              // level[y][x] = {4,3};
+            // }
+            // end_position = {x,y};
           }
         }
 
-        log("Level Saved");
-      }
-    }
+        if(IsKeyPressed(KEY_Q)) {
+          FILE* file = fopen(level_file_path, "r");
 
-    if(IsKeyPressed(KEY_L)) {
-      if(engine_state == EngineState::LEVEL_EDITOR) {
-        FILE* file = fopen(level_file_path, "r");
+          for(u32 col = 0; col < level_height; col++) {
+            for(u32 row = 0; row < level_width; row++) {
+              f32 x, y;
+              fscanf(file, "%f", &x);
+              fscanf(file, "%f", &y);
+              level[col][row] = {x, y};
 
-        for(u32 col = 0; col < level_height; col++) {
-          for(u32 row = 0; row < level_width; row++) {
-            f32 x, y;
-            fscanf(file, "%f", &x);
-            fscanf(file, "%f", &y);
-            level[col][row] = {x, y};
-
-            /// @todo: getting player position, kinda a hack
-            if((u32)x == 0 && (u32)y == 12) {
-              player_position = {x, y};
-              log("Found player");
+              /// @todo: hack: getting player position
+              if((u32)x == 0 && (u32)y == 12) {
+                player_position = {x, y};
+                log("Found player");
+              }
             }
           }
         }
-      }
+      } break;
+
+      case EngineState::TILE_SELECTION: {
+        if(IsKeyPressed(KEY_R)) {
+          camera2D.target = {};
+          tilemap_scale = 2;
+        }
+
+        f32 wheel_delta = GetMouseWheelMove();
+        if(!FloatEquals(wheel_delta, 0)) {
+          tilemap_scale = Lerp(tilemap_scale,tilemap_scale + 2 * (s64)wheel_delta, 0.1);
+          tilemap_scale = Clamp(tilemap_scale, 2, 6);
+        }
+
+        if(IsKeyPressed(KEY_SPACE)) {
+          SetMouseCursor(PAN_CURSOR);
+          last_pan_position = camera2D.target + mouse_position;
+        }
+
+        if(IsKeyReleased(KEY_SPACE)) {
+          SetMouseCursor(ARROW_CURSOR);
+          last_pan_position = {};
+        }
+
+        if(IsKeyDown(KEY_SPACE)) {
+          current_pan_delta = last_pan_position - mouse_position;
+          camera2D.target = current_pan_delta;
+        }
+
+        if(IsMouseButtonPressed(0)) {
+          engine_state = EngineState::LEVEL_EDITOR;
+          cooldown_timer = 0.3;
+          camera2D.target = {};
+        }
+
+      } break;
     }
 
-    if(IsKeyPressed(KEY_U)) {
+    if(IsKeyPressed(KEY_F)) {
       if(IsMusicStreamPlaying(music)) PauseMusicStream(music);
       else PlayMusicStream(music);
     }
 
-    if(IsKeyPressed(KEY_R)) {
-      camera2D.target = {};
-      tilemap_scale = 2;
-    }
-
     u8 border = 20;
     Rectangle alpha_rect = {selected_tile_rect.x - border, selected_tile_rect.y - border, selected_tile_rect.width + border * 2, selected_tile_rect.height + border * 2};
+    f32 opacity = 1;
     if(CheckCollisionPointRec(mouse_position, alpha_rect)) {
-      selected_tile_alpha = Lerp(selected_tile_alpha, 0.1, 0.1);
-    } else {
-      selected_tile_alpha = Lerp(selected_tile_alpha, 1, 0.1);
+      opacity = 0.1;
     }
+    selected_tile_alpha = Lerp(selected_tile_alpha, opacity, 0.1);
 
-    static f32 cooldown_timer = 0;
-    if(IsMouseButtonPressed(0)) {
-      if(engine_state == EngineState::TILE_SELECTION) {
-        engine_state = EngineState::LEVEL_EDITOR;
-        cooldown_timer = 0.3;
-        camera2D.target = {};
-      }
-    }
-
-    /// @note: this prevents placing a tile when transitioning between tile selection and level editor
+    /// @note: This prevents placing a tile when transitioning between tile selection and level editor.
+    /// I think it should not change directly to level editor after selecting the tile, then I can remove this cooldown.
     cooldown_timer -= dt;
     if(cooldown_timer < 0) cooldown_timer = 0;
-
-    if(IsMouseButtonDown(0)) {
-      if(engine_state == EngineState::LEVEL_EDITOR && FloatEquals(cooldown_timer, 0)) {
-        Vector2 level_position = (mouse_position + camera2D.target) / (TILE_SIZE * level_tile_scale);
-        u32 x = (u32)floor(Clamp(level_position.x, 0, level_width));
-        u32 y = (u32)floor(Clamp(level_position.y, 0, level_height));
-
-        if(started_dragging == false) {
-          start_position = {(f32)x, (f32)y};
-          started_dragging = true;
-          log("Selected Tile", selected_tile);
-          if(4 <= selected_tile.y && selected_tile.y <= 6
-          && 7 <= selected_tile.x && selected_tile.x <= 9) {
-            editor_tile_type = EditorTileType::NINE_PATCH;
-          } else if(3 <= selected_tile.y && selected_tile.y <= 7
-                 && 3 <= selected_tile.x && selected_tile.x <= 6) {
-                  editor_tile_type = EditorTileType::HORIZONTAL_ONLY;
-                  level[y][x] = {3,selected_tile.y};
-                 } else {
-                    editor_tile_type = EditorTileType::DEFAULT_ONE_TILE;
-                    level[y][x] = selected_tile;
-                 }
-        } else {
-          /// @note: is dragging, mouse down
-          if(!FloatEquals(start_position.x, x) || !FloatEquals(start_position.y, y)) {
-
-          /// @note: hmmmmm, too hardcoded...
-            switch(editor_tile_type) {
-              case EditorTileType::DEFAULT_ONE_TILE: { level[y][x] = selected_tile; break; };
-              case EditorTileType::HORIZONTAL_ONLY: {
-                if(x > start_position.x) {
-                  /// @note: right
-                  level[(u32)start_position.y][(u32)start_position.x] = {4,(f32)selected_tile.y};
-                  for(u32 ii = 0; ii < x - start_position.x; ii++) {
-                    level[(u32)start_position.y][(u32)start_position.x+ii+1] = {5,(f32)selected_tile.y};
-                  }
-                  level[(u32)start_position.y][x] = {6,(f32)selected_tile.y};
-                }
-                if(x < start_position.x) {
-                  /// @note: left
-                  level[(u32)start_position.y][(u32)start_position.x] = {6,(f32)selected_tile.y};
-                  for(u32 ii = 0; ii < start_position.x - x; ii++) {
-                    level[(u32)start_position.y][(u32)start_position.x-ii-1] = {5,(f32)selected_tile.y};
-                  }
-                  level[(u32)start_position.y][x] = {4,(f32)selected_tile.y};
-                }
-                // if(y > start_position.y) {
-                //   /// @note: down
-                // }
-                // if(y < start_position.y) {
-                //   /// @note: up
-                // }
-                break;
-              };
-              case EditorTileType::VERTICAL_ONLY: { break; };
-              case EditorTileType::NINE_PATCH: { break; };
-            }
-          }
-          // if(start_position.x < x) {
-            // level[y][x] = {4,3};
-          // }
-          // end_position = {x,y};
-        }
-      }
-    }
 
     if(IsMouseButtonReleased(0)) {
       if(engine_state == EngineState::LEVEL_EDITOR) {
@@ -354,6 +382,7 @@ s32 main() {
           u32 y = (u32)floor(Clamp(level_position.y, 0, level_height));
 
           end_position = {(f32)x, (f32)y};
+          /// @todo: This is hardcoded. Should have a dynamic list of group tiles that can behave like a 9 patch or 3 patch.
           if(x < start_position.x) {
             level[y][x] = {4,(f32)selected_tile.y};
           }
@@ -371,53 +400,34 @@ s32 main() {
       }
     }
 
-    if(IsMouseButtonPressed(1)) {
-      engine_state = EngineState::TILE_SELECTION;
-      camera2D.target = current_pan_delta;
-    }
-
-    f32 wheel_delta = GetMouseWheelMove();
-    if(!FloatEquals(wheel_delta, 0)) {
-      tilemap_scale = Lerp(tilemap_scale,tilemap_scale + 2 * (s64)wheel_delta, 0.1);
-      tilemap_scale = Clamp(tilemap_scale, 2, 6);
-    }
-
-    if(IsKeyPressed(KEY_SPACE)) {
-      if(engine_state == EngineState::TILE_SELECTION) {
-        SetMouseCursor(PAN_CURSOR);
-        last_pan_position = camera2D.target + mouse_position;
+    s32 speed = 400;
+    f32 friction = 0.85;
+    static bool last_was_left = false;
+    u32 turn_speed_multiplier = 3;
+    if(IsKeyDown(KEY_A)) {
+      if(!last_was_left) {
+        player_velocity.x *= friction;
+        player_velocity.x -= speed * turn_speed_multiplier * dt;
       }
-    }
-
-    if(IsKeyReleased(KEY_SPACE)) {
-      SetMouseCursor(ARROW_CURSOR);
-      last_pan_position = {};
-    }
-
-    if(IsKeyDown(KEY_SPACE)) {
-      if(engine_state == EngineState::TILE_SELECTION) {
-        current_pan_delta = last_pan_position - mouse_position;
-        camera2D.target = current_pan_delta;
+      player_velocity.x -= speed * dt;
+      last_was_left = true;
+    } else if(IsKeyDown(KEY_D)) {
+      if(last_was_left) {
+        player_velocity.x *= friction;
+        player_velocity.x += speed * turn_speed_multiplier * dt;
       }
-    }
-
-    if(IsKeyPressed(KEY_J)) {
-      dictionary_index = dictionary_index == EN ? CN : EN;
-    }
-
-    s32 speed = 300;
-    if(IsKeyDown(KEY_A)) player_velocity.x -= speed * dt;
-    else if(IsKeyDown(KEY_D)) player_velocity.x += speed * dt;
-    else {
+      player_velocity.x += speed * dt;
+      last_was_left = false;
+    } else {
       if(FloatEquals(player_velocity.y, 0))
-        player_velocity.x *= 0.9;
+        player_velocity.x *= friction;
     }
 
-    player_velocity.x = Clamp(player_velocity.x, -speed, speed);
+    f32 percent_speed = 0.9;
+    player_velocity.x = Clamp(player_velocity.x, percent_speed * -speed, percent_speed * speed);
 
     if(IsKeyPressed(KEY_SPACE)) {
       if(engine_state == EngineState::IN_GAME) {
-        log("pressed space");
         // f32 x_grid = x * TILE_SIZE * level_tile_scale + camera2D.target.x + player_position.x;
         // f32 y_grid = y * TILE_SIZE * level_tile_scale + camera2D.target.y + player_position.y;
 
@@ -428,7 +438,6 @@ s32 main() {
         // u32 y = Clamp(y_grid + 1, 0, 19);
         f32 scaled_tile_size = TILE_SIZE * level_tile_scale;
         if(CheckCollisionRecs({player_position.x,player_position.y,scaled_tile_size,scaled_tile_size}, {0,screen_height-scaled_tile_size*2, screen_width, scaled_tile_size*2})) {
-          log("jump man");
           player_velocity.y = jump_velocity;
           /// @todo: super hacky!!!! duplicate code
           player_position.y += player_velocity.y * dt;
@@ -454,11 +463,9 @@ s32 main() {
       bool hit_ground = CheckCollisionRecs({player_position.x,player_position.y,scaled_tile_size,scaled_tile_size}, ground);
 
       if(hit_ground) {
-        // log("hit ground");
         player_velocity.y = 0;
         player_position.y = ground.y - scaled_tile_size + 1;
       } else {
-        log("falling");
         f32 g = player_velocity.y < 0 ? jump_gravity : fall_gravity;
         player_velocity.y += g * dt;
       }
@@ -468,8 +475,7 @@ s32 main() {
     }
 
     BeginDrawing();
-    if(engine_state == EngineState::IN_GAME) ClearBackground(BLACK);
-    else ClearBackground(BLUE);
+    ClearBackground({55, 65, 81, 255});
 
       BeginMode2D(camera2D);
         if(engine_state == EngineState::TILE_SELECTION) {
@@ -529,8 +535,8 @@ s32 main() {
                   target_position = player_position;
                   u32 font_size = 70;
                   u8 spacing = 0;
-                  DrawTextEx(font, TextFormat("{%f, %f}", target_position.x, target_position.y), {0,0}, font_size, spacing, MAGENTA);
-                  DrawTextEx(font, TextFormat("{%f, %f}", player_velocity.x, player_velocity.y), {0,(f32)font_size}, font_size, spacing, MAGENTA);
+                  // DrawTextEx(font, TextFormat("{%f, %f}", target_position.x, target_position.y), {0,0}, font_size, spacing, MAGENTA);
+                  // DrawTextEx(font, TextFormat("{%f, %f}", player_velocity.x, player_velocity.y), {0,(f32)font_size}, font_size, spacing, MAGENTA);
                 }
                 DrawTexturePro(tilemap, 
                   {
@@ -589,23 +595,37 @@ s32 main() {
       f32 scaled_tile_size = TILE_SIZE * level_tile_scale;
       Rectangle p = {player_position.x,player_position.y,scaled_tile_size,scaled_tile_size};
       Rectangle ground = {0,screen_height-scaled_tile_size*2, screen_width, scaled_tile_size*2};
-      DrawRectangleLinesEx(p, 3, MAGENTA);
-      DrawRectangleLinesEx(ground, 3, GOLD);
-
-      if(GuiButton({24, 24, 120, 30}, "#191#Show Message")) showMessageBox = true;
-
-      if(showMessageBox) {
-        s32 result = GuiMessageBox({85, 70, 250, 100}, "#191#Message Box", "Hi! This is a message!", "Nice;Cool");
-        // log("Result: %d");
-
-        if(result >= 0) showMessageBox = false;
+      if(engine_state == EngineState::IN_GAME) {
+        DrawRectangleLinesEx(p, 3, MAGENTA);
+        DrawRectangleLinesEx(ground, 3, GOLD);
       }
 
-      GuiSlider({ screen_width/2, screen_height/2 - 300, 200, 70 }, NULL, TextFormat("jump_height: %.2fs", jump_height), &jump_height, 1, 1000);
+      // if(GuiButton({24, 24, 120, 30}, "#191#Show Message")) showMessageBox = true;
 
-      GuiSlider({ screen_width/2, screen_height/2 - 200, 200, 70 }, NULL, TextFormat("jump_time_to_peak: %.2fs", jump_time_to_peak), &jump_time_to_peak, 0, 1);
+      // if(showMessageBox) {
+      //   s32 result = GuiMessageBox({85, 70, 250, 100}, "#191#Message Box", "Hi! This is a message!", "Nice;Cool");
+      //   // log("Result: %d");
 
-      GuiSlider({ screen_width/2, screen_height/2, 200, 70 }, NULL, TextFormat("jump_time_to_descent: %.2fs", jump_time_to_descent), &jump_time_to_descent, 0, 1);
+      //   if(result >= 0) showMessageBox = false;
+      // }
+
+      if(engine_state == EngineState::IN_GAME) {
+        Rectangle slider = {10, 10, 200, 20};
+        u32 slider_count = 4;
+        u32 gap = 10;
+        DrawRectangleRec({0,0,screen_width,slider.height*slider_count+gap*slider_count}, MAGENTA);
+
+        GuiSlider(slider, NULL, TextFormat("jump_height: %.2fs", jump_height), &jump_height, 1, 1000);
+
+        slider.y += slider.height + gap;
+        GuiSlider(slider, NULL, TextFormat("jump_time_to_peak: %.2fs", jump_time_to_peak), &jump_time_to_peak, 0, 1);
+
+        slider.y += slider.height + gap;
+        GuiSlider(slider, NULL, TextFormat("jump_time_to_descent: %.2fs", jump_time_to_descent), &jump_time_to_descent, 0, 1);
+
+        slider.y += slider.height + gap;
+        GuiSlider(slider, NULL, TextFormat("friction: %.2fs", friction), &friction, 0, 2);
+      }
 
     EndDrawing();
   }
