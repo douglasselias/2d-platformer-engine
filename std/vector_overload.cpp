@@ -109,11 +109,11 @@ mutable_vector3_op_vector(*=)
 mutable_vector3_op_vector(/=)
 
 bool operator ==(const Vector2 &lhs, const Vector2 &rhs) {
-  return Vector2Equals(lhs, rhs);
+  return (bool)Vector2Equals(lhs, rhs);
 }
 
 bool operator ==(const Vector3 &lhs, const Vector3 &rhs) {
-  return Vector3Equals(lhs, rhs);
+  return (bool)Vector3Equals(lhs, rhs);
 }
 
 Vector2 operator -(const Vector2 &v) {

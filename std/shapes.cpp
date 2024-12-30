@@ -29,12 +29,13 @@ void draw_circle(Circle circle, Color color) {
   DrawCircleV(circle.center, circle.radius, color);
 }
 
+/// @todo: Can segments be negative???
 void draw_circle_sector(Circle circle, f32 start_angle, f32 end_angle, u32 segments, Color color) {
-  DrawCircleSector(circle.center, circle.radius, start_angle, end_angle, segments, color);
+  DrawCircleSector(circle.center, circle.radius, start_angle, end_angle, (s32)segments, color);
 }
 
 void draw_circle_sector_lines(Circle circle, f32 start_angle, f32 end_angle, u32 segments, Color color) {
-  DrawCircleSectorLines(circle.center, circle.radius, start_angle, end_angle, segments, color);
+  DrawCircleSectorLines(circle.center, circle.radius, start_angle, end_angle, (s32)segments, color);
 }
 
 void draw_circle_gradient(Circle circle, Color a, Color b) {
