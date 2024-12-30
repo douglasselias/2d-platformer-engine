@@ -37,7 +37,7 @@ void init_screen() {
   SetTargetFPS(60);
 
   InitAudioDevice();
-  SetRandomSeed((u32)time(null));
+  SetRandomSeed((u32)GetTime());
 
   s32 display = GetCurrentMonitor();
   monitor_width  = GetMonitorWidth(display);
