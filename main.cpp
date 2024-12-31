@@ -44,6 +44,8 @@
 #include "src/screen.cpp"
 #include "src/text.cpp"
 
+#include "src/tailwind_palette.cpp"
+
 s32 main() {
   puts("-----------");
   puts("Game Logs |");
@@ -445,7 +447,7 @@ s32 main() {
       }
     }
 
-    /// @note: update()
+    /// @note: Update();
     if(engine_state == EngineState::IN_GAME) {
       // u32 x_grid = player_position.x / level_width;
       // u32 y_grid = player_position.y / level_height;
@@ -474,146 +476,145 @@ s32 main() {
       player_position.x += player_velocity.x * dt;
     }
 
+    /// @note: Draw();
     BeginDrawing();
-    ClearBackground({55, 65, 81, 255});
+    ClearBackground({0x37, 0x41, 0x51});
+    BeginMode2D(camera2D);
 
-      BeginMode2D(camera2D);
-        if(engine_state == EngineState::TILE_SELECTION) {
-          DrawTextureEx(tilemap, {}, 0, tilemap_scale, WHITE);
+    switch(engine_state) {
+      case EngineState::TILE_SELECTION: {
+        DrawTextureEx(tilemap, {}, 0, tilemap_scale, WHITE);
 
-          for(u32 col = 0; col <= (u32)(tilemap.width / TILE_SIZE); col++) {
-            DrawLineV({(f32)TILE_SIZE * tilemap_scale * col, 0}, {(f32)TILE_SIZE * tilemap_scale * col, (f32)tilemap.height * tilemap_scale}, WHITE);
-          }
-          for(u32 row = 0; row <= (u32)(tilemap.height / TILE_SIZE); row++) {
-            DrawLineV({0, (f32)TILE_SIZE * tilemap_scale * row}, {(f32)tilemap.width * tilemap_scale, (f32)TILE_SIZE * tilemap_scale * row}, WHITE);
-          }
-
-          for(u32 col = 0; col < (u32)(tilemap.width / TILE_SIZE); col++) {
-            for(u32 row = 0; row < (u32)(tilemap.height / TILE_SIZE); row++) {
-              if(CheckCollisionPointRec(mouse_position + camera2D.target, {col * TILE_SIZE * tilemap_scale, row * TILE_SIZE * tilemap_scale, TILE_SIZE * tilemap_scale, TILE_SIZE * tilemap_scale})) {
-                DrawRectangleRec({col * TILE_SIZE * tilemap_scale, row * TILE_SIZE * tilemap_scale, TILE_SIZE * tilemap_scale, TILE_SIZE * tilemap_scale}, {0,255,0,(u8)(255*0.5)});
-
-                if(engine_state == EngineState::LEVEL_EDITOR) {
-                  continue;
-                }
-                selected_tile = {(f32)col, (f32)row};
-              }
-            }
-          }
-        } else if(engine_state == EngineState::LEVEL_EDITOR) {
-          for(u32 col = 0; col < level_width; col++) {
-            for(u32 row = 0; row < level_height; row++) {
-              Vector2 tile_position = level[row][col];
-              if(!FloatEquals(tile_position.x, -1) && !FloatEquals(tile_position.y, -1)) {
-                DrawTexturePro(tilemap, 
-                  {
-                    (f32)tile_position.x * TILE_SIZE,
-                    (f32)tile_position.y * TILE_SIZE,
-                    TILE_SIZE, TILE_SIZE
-                  }, 
-                  {
-                    (f32)col * TILE_SIZE * level_tile_scale + camera2D.target.x,
-                    (f32)row * TILE_SIZE * level_tile_scale + camera2D.target.y,
-                    TILE_SIZE * level_tile_scale, TILE_SIZE * level_tile_scale
-                  }, {0,0}, 0, WHITE);
-              }
-              DrawLineV({0, (f32)TILE_SIZE * level_tile_scale * row}, {(f32)screen_width * level_tile_scale, (f32)TILE_SIZE * level_tile_scale * row}, WHITE);
-            }
-            DrawLineV({(f32)TILE_SIZE * level_tile_scale * col, 0}, {(f32)TILE_SIZE * level_tile_scale * col, (f32)screen_height * level_tile_scale}, WHITE);
-          }
-        } else if(engine_state == EngineState::IN_GAME) {
-          for(u32 col = 0; col < level_width; col++) {
-            for(u32 row = 0; row < level_height; row++) {
-              Vector2 tile_position = level[row][col];
-              if(!FloatEquals(tile_position.x, -1) && !FloatEquals(tile_position.y, -1)) {
-                /// @todo: very hacky thing, beware
-                Vector2 target_position = {
-                  (f32)col * TILE_SIZE * level_tile_scale + camera2D.target.x,
-                  (f32)row * TILE_SIZE * level_tile_scale + camera2D.target.y
-                };
-                if((u32)tile_position.x == 0 && (u32)tile_position.y == 12) {
-                  target_position = player_position;
-                  u32 font_size = 70;
-                  u8 spacing = 0;
-                  // DrawTextEx(font, TextFormat("{%f, %f}", target_position.x, target_position.y), {0,0}, font_size, spacing, MAGENTA);
-                  // DrawTextEx(font, TextFormat("{%f, %f}", player_velocity.x, player_velocity.y), {0,(f32)font_size}, font_size, spacing, MAGENTA);
-                }
-                DrawTexturePro(tilemap, 
-                  {
-                    (f32)tile_position.x * TILE_SIZE,
-                    (f32)tile_position.y * TILE_SIZE,
-                    TILE_SIZE, TILE_SIZE
-                  }, 
-                  {
-                    target_position.x,
-                    target_position.y,
-                    TILE_SIZE * level_tile_scale, TILE_SIZE * level_tile_scale
-                  }, {0,0}, 0, WHITE);
-
-
-              }
-              // DrawLineV({0, (f32)TILE_SIZE * level_tile_scale * row}, {(f32)screen_width * level_tile_scale, (f32)TILE_SIZE * level_tile_scale * row}, WHITE);
-            }
-            // DrawLineV({(f32)TILE_SIZE * level_tile_scale * col, 0}, {(f32)TILE_SIZE * level_tile_scale * col, (f32)screen_height * level_tile_scale}, WHITE);
-          }
+        for(u32 col = 0; col <= (u32)(tilemap.width / TILE_SIZE); col++) {
+          DrawLineV({(f32)TILE_SIZE * tilemap_scale * col, 0}, {(f32)TILE_SIZE * tilemap_scale * col, (f32)tilemap.height * tilemap_scale}, WHITE);
+        }
+        for(u32 row = 0; row <= (u32)(tilemap.height / TILE_SIZE); row++) {
+          DrawLineV({0, (f32)TILE_SIZE * tilemap_scale * row}, {(f32)tilemap.width * tilemap_scale, (f32)TILE_SIZE * tilemap_scale * row}, WHITE);
         }
 
-      EndMode2D();
+        for(u32 col = 0; col < (u32)(tilemap.width / TILE_SIZE); col++) {
+          for(u32 row = 0; row < (u32)(tilemap.height / TILE_SIZE); row++) {
+            if(CheckCollisionPointRec(mouse_position + camera2D.target, {col * TILE_SIZE * tilemap_scale, row * TILE_SIZE * tilemap_scale, TILE_SIZE * tilemap_scale, TILE_SIZE * tilemap_scale})) {
+              DrawRectangleRec({col * TILE_SIZE * tilemap_scale, row * TILE_SIZE * tilemap_scale, TILE_SIZE * tilemap_scale, TILE_SIZE * tilemap_scale}, {0,255,0,(u8)(255*0.5)});
 
-      if(engine_state != EngineState::IN_GAME) {
-        DrawTexturePro(tilemap,
-          {selected_tile.x * TILE_SIZE,selected_tile.y * TILE_SIZE,TILE_SIZE,TILE_SIZE},
-          selected_tile_rect, {0,0}, 0, {255, 255, 255, (u8)(255 * selected_tile_alpha)});
-      }
+              if(engine_state == EngineState::LEVEL_EDITOR) {
+                continue;
+              }
+              selected_tile = {(f32)col, (f32)row};
+            }
+          }
+        }
+      } break;
 
-      u32 font_size = 70;
-      u8 spacing = 0;
+      case EngineState::LEVEL_EDITOR: {
+        for(u32 col = 0; col < level_width; col++) {
+          for(u32 row = 0; row < level_height; row++) {
+            Vector2 tile_position = level[row][col];
+            if(!FloatEquals(tile_position.x, -1) && !FloatEquals(tile_position.y, -1)) {
+              DrawTexturePro(tilemap, 
+                {
+                  (f32)tile_position.x * TILE_SIZE,
+                  (f32)tile_position.y * TILE_SIZE,
+                  TILE_SIZE, TILE_SIZE
+                }, 
+                {
+                  (f32)col * TILE_SIZE * level_tile_scale + camera2D.target.x,
+                  (f32)row * TILE_SIZE * level_tile_scale + camera2D.target.y,
+                  TILE_SIZE * level_tile_scale, TILE_SIZE * level_tile_scale
+                }, {0,0}, 0, WHITE);
+            }
+            DrawLineV({0, (f32)TILE_SIZE * level_tile_scale * row}, {(f32)screen_width * level_tile_scale, (f32)TILE_SIZE * level_tile_scale * row}, WHITE);
+          }
+          DrawLineV({(f32)TILE_SIZE * level_tile_scale * col, 0}, {(f32)TILE_SIZE * level_tile_scale * col, (f32)screen_height * level_tile_scale}, WHITE);
+        }
+      } break;
 
-      // DrawRectangleRec(alpha_rect, WHITE);
+      case EngineState::IN_GAME: {
+        for(u32 col = 0; col < level_width; col++) {
+          for(u32 row = 0; row < level_height; row++) {
+            Vector2 tile_position = level[row][col];
+            if(!FloatEquals(tile_position.x, -1) && !FloatEquals(tile_position.y, -1)) {
+              /// @todo: very hacky thing, beware
+              Vector2 target_position = {
+                (f32)col * TILE_SIZE * level_tile_scale + camera2D.target.x,
+                (f32)row * TILE_SIZE * level_tile_scale + camera2D.target.y
+              };
+              if((u32)tile_position.x == 0 && (u32)tile_position.y == 12) {
+                target_position = player_position;
+                u32 font_size = 70;
+                u8 spacing = 0;
+                // DrawTextEx(font, TextFormat("{%f, %f}", target_position.x, target_position.y), {0,0}, font_size, spacing, MAGENTA);
+                // DrawTextEx(font, TextFormat("{%f, %f}", player_velocity.x, player_velocity.y), {0,(f32)font_size}, font_size, spacing, MAGENTA);
+              }
+              DrawTexturePro(tilemap, 
+                {
+                  (f32)tile_position.x * TILE_SIZE,
+                  (f32)tile_position.y * TILE_SIZE,
+                  TILE_SIZE, TILE_SIZE
+                }, 
+                {
+                  target_position.x,
+                  target_position.y,
+                  TILE_SIZE * level_tile_scale, TILE_SIZE * level_tile_scale
+                }, {0,0}, 0, WHITE);
 
-      // {
-      //   char* hello_world_text = i18n(dictionary_index, "hello_world");
-      //   Vector2 pos = {screen_center.x - MeasureTextEx(font, hello_world_text, font_size, spacing).x / 2, screen_center.y - font_size};
-      //   DrawTextEx(font, hello_world_text, pos, font_size, spacing, BLACK);
-      //   DrawTextEx(font, hello_world_text, pos + 3, font_size, spacing, WHITE);
-      // }
 
-      // {
-      //   char* main_menu_play_text = i18n(dictionary_index, "main_menu_play");
-      //   Vector2 pos = {screen_center.x - MeasureTextEx(font, main_menu_play_text, font_size, spacing).x / 2, screen_center.y};
-      //   DrawTextEx(font, main_menu_play_text, pos, font_size, spacing, BLACK);
-      //   DrawTextEx(font, main_menu_play_text, pos + 3, font_size, spacing, WHITE);
-      // }
+            }
+            // DrawLineV({0, (f32)TILE_SIZE * level_tile_scale * row}, {(f32)screen_width * level_tile_scale, (f32)TILE_SIZE * level_tile_scale * row}, WHITE);
+          }
+          // DrawLineV({(f32)TILE_SIZE * level_tile_scale * col, 0}, {(f32)TILE_SIZE * level_tile_scale * col, (f32)screen_height * level_tile_scale}, WHITE);
+        }
+      } break;
+    }
 
-      // {
-      //   char* hello_sailor_text = i18n(dictionary_index, "hello_sailor");
-      //   Vector2 pos = {screen_center.x - MeasureTextEx(font, hello_sailor_text, font_size, spacing).x / 2, screen_center.y + font_size};
-      //   DrawTextEx(font, hello_sailor_text, pos, font_size, spacing, BLACK);
-      //   DrawTextEx(font, hello_sailor_text, pos + 3, font_size, spacing, WHITE);
-      // }
+    EndMode2D();
 
-      f32 scaled_tile_size = TILE_SIZE * level_tile_scale;
-      Rectangle p = {player_position.x,player_position.y,scaled_tile_size,scaled_tile_size};
-      Rectangle ground = {0,screen_height-scaled_tile_size*2, screen_width, scaled_tile_size*2};
-      if(engine_state == EngineState::IN_GAME) {
+    if(engine_state != EngineState::IN_GAME) {
+      DrawTexturePro(tilemap,
+        {selected_tile.x * TILE_SIZE,selected_tile.y * TILE_SIZE,TILE_SIZE,TILE_SIZE},
+        selected_tile_rect, {0,0}, 0, {255, 255, 255, (u8)(255 * selected_tile_alpha)});
+    }
+
+    // u32 font_size = 70;
+    // u8 spacing = 0;
+
+    // {
+    //   char* hello_world_text = i18n(dictionary_index, "hello_world");
+    //   Vector2 pos = {screen_center.x - MeasureTextEx(font, hello_world_text, font_size, spacing).x / 2, screen_center.y - font_size};
+    //   DrawTextEx(font, hello_world_text, pos, font_size, spacing, BLACK);
+    //   DrawTextEx(font, hello_world_text, pos + 3, font_size, spacing, WHITE);
+    // }
+
+    // {
+    //   char* main_menu_play_text = i18n(dictionary_index, "main_menu_play");
+    //   Vector2 pos = {screen_center.x - MeasureTextEx(font, main_menu_play_text, font_size, spacing).x / 2, screen_center.y};
+    //   DrawTextEx(font, main_menu_play_text, pos, font_size, spacing, BLACK);
+    //   DrawTextEx(font, main_menu_play_text, pos + 3, font_size, spacing, WHITE);
+    // }
+
+    // {
+    //   char* hello_sailor_text = i18n(dictionary_index, "hello_sailor");
+    //   Vector2 pos = {screen_center.x - MeasureTextEx(font, hello_sailor_text, font_size, spacing).x / 2, screen_center.y + font_size};
+    //   DrawTextEx(font, hello_sailor_text, pos, font_size, spacing, BLACK);
+    //   DrawTextEx(font, hello_sailor_text, pos + 3, font_size, spacing, WHITE);
+    // }
+
+    switch(engine_state) {
+      case EngineState::TILE_SELECTION: {} break;
+
+      case EngineState::LEVEL_EDITOR: {} break;
+
+      case EngineState::IN_GAME: {
+        f32 scaled_tile_size = TILE_SIZE * level_tile_scale;
+        Rectangle p = {player_position.x,player_position.y,scaled_tile_size,scaled_tile_size};
+        Rectangle ground = {0,screen_height-scaled_tile_size*2, screen_width, scaled_tile_size*2};
         DrawRectangleLinesEx(p, 3, MAGENTA);
         DrawRectangleLinesEx(ground, 3, GOLD);
-      }
 
-      // if(GuiButton({24, 24, 120, 30}, "#191#Show Message")) showMessageBox = true;
-
-      // if(showMessageBox) {
-      //   s32 result = GuiMessageBox({85, 70, 250, 100}, "#191#Message Box", "Hi! This is a message!", "Nice;Cool");
-      //   // log("Result: %d");
-
-      //   if(result >= 0) showMessageBox = false;
-      // }
-
-      if(engine_state == EngineState::IN_GAME) {
         Rectangle slider = {10, 10, 200, 20};
         u32 slider_count = 4;
         u32 gap = 10;
-        DrawRectangleRec({0,0,screen_width,slider.height*slider_count+gap*slider_count}, MAGENTA);
+        DrawRectangleRec({0, 0, screen_width, (slider.height * slider_count) + (gap * (slider_count + 1))}, BLACK);
 
         GuiSlider(slider, NULL, TextFormat("jump_height: %.2fs", jump_height), &jump_height, 1, 1000);
 
@@ -625,7 +626,8 @@ s32 main() {
 
         slider.y += slider.height + gap;
         GuiSlider(slider, NULL, TextFormat("friction: %.2fs", friction), &friction, 0, 2);
-      }
+      } break;
+    }
 
     EndDrawing();
   }
