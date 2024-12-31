@@ -59,6 +59,7 @@ s32 main() {
   enum class EngineState {
     IN_GAME,
     LEVEL_EDITOR,
+    PHYSICS_EDITOR,
     TILE_SELECTION,
   };
 
@@ -184,7 +185,6 @@ s32 main() {
   Vector2 end_position = {};
   bool started_dragging = false;
 
-  /// @note: Copied from https://gist.github.com/sjvnnings/5f02d2f2fc417f3804e967daa73cccfd
   Vector2 player_position = {};
   Vector2 player_velocity = {};
   f32 move_speed = 200;
@@ -192,7 +192,6 @@ s32 main() {
   f32 jump_height = 100;
   f32 jump_time_to_peak    = 0.5;
   f32 jump_time_to_descent = 0.4;
-  /// @note: End of note
 
   bool showMessageBox = false;
   f32 cooldown_timer = 0;
@@ -201,11 +200,6 @@ s32 main() {
     f32 dt = GetFrameTime();
     Vector2 mouse_position = GetMousePosition();
     UpdateMusicStream(music);
-
-    /// @todo: Move closer to where it is being used in the update section.
-    f32 jump_velocity = -1 * (( 2 * jump_height) / jump_time_to_peak);
-    f32 jump_gravity  = -1 * ((-2 * jump_height) / (jump_time_to_peak * jump_time_to_peak));
-    f32 fall_gravity  = -1 * ((-2 * jump_height) / (jump_time_to_descent * jump_time_to_descent));
 
     const char* level_file_path = "../level.txt";
 
@@ -219,6 +213,10 @@ s32 main() {
     }
 
     if(IsKeyPressed(KEY_THREE)) {
+      engine_state = EngineState::PHYSICS_EDITOR;
+    }
+
+    if(IsKeyPressed(KEY_FOUR)) {
       engine_state = EngineState::IN_GAME;
     }
 
@@ -228,8 +226,62 @@ s32 main() {
     }
 
     /// @note: Input(); 
+    s32 speed = 400;
+    f32 friction = 0.85;
+    /// @note: Copied from https://gist.github.com/sjvnnings/5f02d2f2fc417f3804e967daa73cccfd
+    /// @todo: Move closer to where it is being used in the update section.
+    f32 jump_velocity = -1 * (( 2 * jump_height) / jump_time_to_peak);
+    f32 jump_gravity  = -1 * ((-2 * jump_height) / (jump_time_to_peak * jump_time_to_peak));
+    f32 fall_gravity  = -1 * ((-2 * jump_height) / (jump_time_to_descent * jump_time_to_descent));
+
     switch(engine_state) {
       case EngineState::IN_GAME: {
+        static bool last_was_left = false;
+        u32 turn_speed_multiplier = 3;
+
+        if(IsKeyDown(KEY_A)) {
+          if(!last_was_left) {
+            player_velocity.x *= friction;
+            player_velocity.x -= speed * turn_speed_multiplier * dt;
+          }
+          player_velocity.x -= speed * dt;
+          last_was_left = true;
+        } else if(IsKeyDown(KEY_D)) {
+          if(last_was_left) {
+            player_velocity.x *= friction;
+            player_velocity.x += speed * turn_speed_multiplier * dt;
+          }
+          player_velocity.x += speed * dt;
+          last_was_left = false;
+        } else {
+          if(FloatEquals(player_velocity.y, 0))
+            player_velocity.x *= friction;
+        }
+
+        f32 percent_speed = 0.9;
+        player_velocity.x = Clamp(player_velocity.x, percent_speed * -speed, percent_speed * speed);
+
+        if(IsKeyPressed(KEY_SPACE)) {
+          // f32 x_grid = x * TILE_SIZE * level_tile_scale + camera2D.target.x + player_position.x;
+          // f32 y_grid = y * TILE_SIZE * level_tile_scale + camera2D.target.y + player_position.y;
+
+          // u32 x_grid = player_position.x / (TILE_SIZE * level_tile_scale);
+          // u32 y_grid = player_position.y / (TILE_SIZE * level_tile_scale);
+
+          // u32 x = Clamp(x_grid, 0, 19);
+          // u32 y = Clamp(y_grid + 1, 0, 19);
+          f32 scaled_tile_size = TILE_SIZE * level_tile_scale;
+          if(CheckCollisionRecs({player_position.x,player_position.y,scaled_tile_size,scaled_tile_size}, {0,screen_height-scaled_tile_size*2, screen_width, scaled_tile_size*2})) {
+            player_velocity.y = jump_velocity;
+            /// @todo: super hacky!!!! duplicate code
+            player_position.y += player_velocity.y * dt;
+          }
+        }
+        
+        if(IsKeyPressed(KEY_F)) {
+          if(IsMusicStreamPlaying(music)) PauseMusicStream(music);
+          else PlayMusicStream(music);
+        }
       } break;
 
       case EngineState::LEVEL_EDITOR: {
@@ -358,11 +410,6 @@ s32 main() {
       } break;
     }
 
-    if(IsKeyPressed(KEY_F)) {
-      if(IsMusicStreamPlaying(music)) PauseMusicStream(music);
-      else PlayMusicStream(music);
-    }
-
     u8 border = 20;
     Rectangle alpha_rect = {selected_tile_rect.x - border, selected_tile_rect.y - border, selected_tile_rect.width + border * 2, selected_tile_rect.height + border * 2};
     f32 opacity = 1;
@@ -402,64 +449,8 @@ s32 main() {
       }
     }
 
-    s32 speed = 400;
-    f32 friction = 0.85;
-    static bool last_was_left = false;
-    u32 turn_speed_multiplier = 3;
-    if(IsKeyDown(KEY_A)) {
-      if(!last_was_left) {
-        player_velocity.x *= friction;
-        player_velocity.x -= speed * turn_speed_multiplier * dt;
-      }
-      player_velocity.x -= speed * dt;
-      last_was_left = true;
-    } else if(IsKeyDown(KEY_D)) {
-      if(last_was_left) {
-        player_velocity.x *= friction;
-        player_velocity.x += speed * turn_speed_multiplier * dt;
-      }
-      player_velocity.x += speed * dt;
-      last_was_left = false;
-    } else {
-      if(FloatEquals(player_velocity.y, 0))
-        player_velocity.x *= friction;
-    }
-
-    f32 percent_speed = 0.9;
-    player_velocity.x = Clamp(player_velocity.x, percent_speed * -speed, percent_speed * speed);
-
-    if(IsKeyPressed(KEY_SPACE)) {
-      if(engine_state == EngineState::IN_GAME) {
-        // f32 x_grid = x * TILE_SIZE * level_tile_scale + camera2D.target.x + player_position.x;
-        // f32 y_grid = y * TILE_SIZE * level_tile_scale + camera2D.target.y + player_position.y;
-
-        // u32 x_grid = player_position.x / (TILE_SIZE * level_tile_scale);
-        // u32 y_grid = player_position.y / (TILE_SIZE * level_tile_scale);
-
-        // u32 x = Clamp(x_grid, 0, 19);
-        // u32 y = Clamp(y_grid + 1, 0, 19);
-        f32 scaled_tile_size = TILE_SIZE * level_tile_scale;
-        if(CheckCollisionRecs({player_position.x,player_position.y,scaled_tile_size,scaled_tile_size}, {0,screen_height-scaled_tile_size*2, screen_width, scaled_tile_size*2})) {
-          player_velocity.y = jump_velocity;
-          /// @todo: super hacky!!!! duplicate code
-          player_position.y += player_velocity.y * dt;
-        }
-      }
-    }
-
     /// @note: Update();
     if(engine_state == EngineState::IN_GAME) {
-      // u32 x_grid = player_position.x / level_width;
-      // u32 y_grid = player_position.y / level_height;
-      // u32 x = Clamp(x_grid, 0, 19);
-      // u32 y = Clamp(y_grid, 0, 19);
-      // if(tilemap_types[y][x] != TileType::GROUND) {
-      // } else if(tilemap_types[y][x] == TileType::GROUND) {
-      //   log("hit ground");
-      //   player_velocity.y = 0;
-      // }
-      // player_position.y += player_velocity.y * dt;
-
       f32 scaled_tile_size = TILE_SIZE * level_tile_scale;
       Rectangle ground = {0,screen_height-scaled_tile_size*2, screen_width, scaled_tile_size*2};
       bool hit_ground = CheckCollisionRecs({player_position.x,player_position.y,scaled_tile_size,scaled_tile_size}, ground);
@@ -571,7 +562,7 @@ s32 main() {
 
     if(engine_state != EngineState::IN_GAME) {
       DrawTexturePro(tilemap,
-        {selected_tile.x * TILE_SIZE,selected_tile.y * TILE_SIZE,TILE_SIZE,TILE_SIZE},
+        {selected_tile.x * TILE_SIZE,selected_tile.y * TILE_SIZE, TILE_SIZE, TILE_SIZE},
         selected_tile_rect, {0,0}, 0, {255, 255, 255, (u8)(255 * selected_tile_alpha)});
     }
 
