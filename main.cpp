@@ -51,9 +51,6 @@ s32 main() {
   // puts("Game Logs |");
   // puts("__________|");
 
-         printf("Selected file\n");
-                fflush(stdout);
-
   init_screen();
   init_i18n();
 
@@ -296,22 +293,40 @@ s32 main() {
         player_velocity.x = Clamp(player_velocity.x, percent_speed * -speed, percent_speed * speed);
 
         if(IsKeyPressed(KEY_SPACE)) {
-          // f32 x_grid = x * TILE_SIZE * level_tile_scale + camera2D.target.x + player_position.x;
-          // f32 y_grid = y * TILE_SIZE * level_tile_scale + camera2D.target.y + player_position.y;
-
-          // u32 x_grid = player_position.x / (TILE_SIZE * level_tile_scale);
-          // u32 y_grid = player_position.y / (TILE_SIZE * level_tile_scale);
-
-          // u32 x = Clamp(x_grid, 0, 19);
-          // u32 y = Clamp(y_grid + 1, 0, 19);
           f32 scaled_tile_size = TILE_SIZE * level_tile_scale;
-          if(CheckCollisionRecs({player_position.x,player_position.y,scaled_tile_size,scaled_tile_size}, {0,screen_height-scaled_tile_size*2, screen_width, scaled_tile_size*2})) {
-            player_velocity.y = jump_velocity;
-            /// @todo: super hacky!!!! duplicate code
-            player_position.y += player_velocity.y * dt;
+
+          for(u32 index = 0; index < total_blocks; index++) {
+            /// @todo: Copy-Pasta from editor rendering.
+            PhysicsBlock b = blocks[index];
+            if(FloatEquals(b.top_left.x, -1)) continue;
+            f32 far_x = b.bottom_right.x - b.top_left.x + 1;
+            f32 far_y = b.bottom_right.y - b.top_left.y + 1;
+            u32 thickness = 3;
+            /// @todo: This could be on the struct itself. It only calculates this on creation.
+            Rectangle ground = {
+              b.top_left.x * TILE_SIZE * level_tile_scale,
+              b.top_left.y * TILE_SIZE * level_tile_scale,
+              far_x * TILE_SIZE * level_tile_scale,
+              far_y * TILE_SIZE * level_tile_scale
+            };
+
+            bool hit_ground = CheckCollisionRecs({player_position.x,player_position.y,scaled_tile_size,scaled_tile_size}, ground);
+
+            if(hit_ground) {
+              player_velocity.y = jump_velocity;
+              /// @todo: super hacky!!!! duplicate code
+              player_position.y += player_velocity.y * dt;
+            }
           }
+
+          // if(CheckCollisionRecs({player_position.x,player_position.y,scaled_tile_size,scaled_tile_size}, {0,screen_height-scaled_tile_size*2, screen_width, scaled_tile_size*2})) {
+          //   player_velocity.y = jump_velocity;
+          //   /// @todo: super hacky!!!! duplicate code
+          //   player_position.y += player_velocity.y * dt;
+          // }
         }
         
+        /// @todo: This code should be removed on release.
         if(IsKeyPressed(KEY_F)) {
           if(IsMusicStreamPlaying(music)) PauseMusicStream(music);
           else PlayMusicStream(music);
@@ -409,7 +424,7 @@ s32 main() {
                   /// @todo: hack: getting player position
                   if((u32)x == 0 && (u32)y == 12) {
                     player_position = {x, y};
-                    // log("Found player");
+                    log("Found player");
                   }
                 }
               }
@@ -429,7 +444,7 @@ s32 main() {
               }
 
               fclose(file);
-              // log("Physics saved");
+              log("Physics saved");
             }
 
             if(IsKeyDown(KEY_Q)) {
@@ -487,16 +502,9 @@ s32 main() {
 
                 bool collided = CheckCollisionPointRec(mouse_position, block_rect);
                 if(collided) {
-                  /// @todo: Remove block
                   blocks[i].top_left = {-1, -1};
                   blocks[i].bottom_right = {-1, -1};
                 }
-
-
-          //   b.top_left.x * TILE_SIZE * level_tile_scale,
-          //   b.top_left.y * TILE_SIZE * level_tile_scale,
-          //   far_x * TILE_SIZE * level_tile_scale,
-          //   far_y * TILE_SIZE * level_tile_scale
               }
             }
           } break;
@@ -583,12 +591,35 @@ s32 main() {
     /// @note: Update();
     if(engine_state == EngineState::IN_GAME) {
       f32 scaled_tile_size = TILE_SIZE * level_tile_scale;
-      Rectangle ground = {0,screen_height-scaled_tile_size*2, screen_width, scaled_tile_size*2};
-      bool hit_ground = CheckCollisionRecs({player_position.x,player_position.y,scaled_tile_size,scaled_tile_size}, ground);
+      // Rectangle ground = {0,screen_height-scaled_tile_size*2, screen_width, scaled_tile_size*2};
+      // bool hit_ground = CheckCollisionRecs({player_position.x,player_position.y,scaled_tile_size,scaled_tile_size}, ground);
+      bool hit_ground = false;
+      f32 ground_y = -1;
+      for(u32 index = 0; index < total_blocks; index++) {
+        /// @todo: Copy-Pasta from editor rendering.
+        PhysicsBlock b = blocks[index];
+        /// @todo: Maybe this if is unnecessary.
+        if(FloatEquals(b.top_left.x, -1)) continue;
+        f32 far_x = b.bottom_right.x - b.top_left.x + 1;
+        f32 far_y = b.bottom_right.y - b.top_left.y + 1;
+        u32 thickness = 3;
+        Rectangle ground = {
+          b.top_left.x * TILE_SIZE * level_tile_scale,
+          b.top_left.y * TILE_SIZE * level_tile_scale,
+          far_x * TILE_SIZE * level_tile_scale,
+          far_y * TILE_SIZE * level_tile_scale
+        };
+
+        hit_ground = CheckCollisionRecs({player_position.x,player_position.y,scaled_tile_size,scaled_tile_size}, ground);
+        if(hit_ground) {
+          ground_y = ground.y;
+          break;
+        };
+      }
 
       if(hit_ground) {
         player_velocity.y = 0;
-        player_position.y = ground.y - scaled_tile_size + 1;
+        player_position.y = ground_y - scaled_tile_size + 1;
       } else {
         f32 g = player_velocity.y < 0 ? jump_gravity : fall_gravity;
         player_velocity.y += g * dt;
@@ -675,13 +706,13 @@ s32 main() {
                 (f32)col * TILE_SIZE * level_tile_scale + camera2D.target.x,
                 (f32)row * TILE_SIZE * level_tile_scale + camera2D.target.y
               };
-              if((u32)tile_position.x == 0 && (u32)tile_position.y == 12) {
-                target_position = player_position;
-                u32 font_size = 70;
-                u8 spacing = 0;
+              // if((u32)tile_position.x == 0 && (u32)tile_position.y == 12) {
+                // target_position = player_position;
+                // u32 font_size = 70;
+                // u8 spacing = 0;
                 // DrawTextEx(font, TextFormat("{%f, %f}", target_position.x, target_position.y), {0,0}, font_size, spacing, MAGENTA);
                 // DrawTextEx(font, TextFormat("{%f, %f}", player_velocity.x, player_velocity.y), {0,(f32)font_size}, font_size, spacing, MAGENTA);
-              }
+              // }
               DrawTexturePro(tilemap, 
                 {
                   (f32)tile_position.x * TILE_SIZE,
@@ -693,8 +724,6 @@ s32 main() {
                   target_position.y,
                   TILE_SIZE * level_tile_scale, TILE_SIZE * level_tile_scale
                 }, {0,0}, 0, WHITE);
-
-
             }
             // DrawLineV({0, (f32)TILE_SIZE * level_tile_scale * row}, {(f32)screen_width * level_tile_scale, (f32)TILE_SIZE * level_tile_scale * row}, WHITE);
           }
@@ -743,9 +772,24 @@ s32 main() {
       case EngineState::IN_GAME: {
         f32 scaled_tile_size = TILE_SIZE * level_tile_scale;
         Rectangle p = {player_position.x,player_position.y,scaled_tile_size,scaled_tile_size};
-        Rectangle ground = {0,screen_height-scaled_tile_size*2, screen_width, scaled_tile_size*2};
+        // Rectangle ground = {0,screen_height-scaled_tile_size*2, screen_width, scaled_tile_size*2};
+        // u32 thickness = 3;
         DrawRectangleLinesEx(p, 3, MAGENTA);
-        DrawRectangleLinesEx(ground, 3, GOLD);
+        // DrawRectangleLinesEx(ground, 3, GOLD);
+
+        for(u32 index = 0; index < total_blocks; index++) {
+          /// @todo: Copy-Pasta from editor rendering.
+          PhysicsBlock b = blocks[index];
+          f32 far_x = b.bottom_right.x - b.top_left.x + 1;
+          f32 far_y = b.bottom_right.y - b.top_left.y + 1;
+          u32 thickness = 3;
+          DrawRectangleLinesEx({
+            b.top_left.x * TILE_SIZE * level_tile_scale,
+            b.top_left.y * TILE_SIZE * level_tile_scale,
+            far_x * TILE_SIZE * level_tile_scale,
+            far_y * TILE_SIZE * level_tile_scale
+          }, thickness, GOLD);
+        }
 
         Rectangle slider = {10, 10, 200, 20};
         u32 slider_count = 4;
