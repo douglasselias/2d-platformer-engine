@@ -47,9 +47,12 @@
 #include "src/tailwind_palette.cpp"
 
 s32 main() {
-  puts("-----------");
-  puts("Game Logs |");
-  puts("__________|");
+  // puts("-----------");
+  // puts("Game Logs |");
+  // puts("__________|");
+
+         printf("Selected file\n");
+                fflush(stdout);
 
   init_screen();
   init_i18n();
@@ -59,11 +62,19 @@ s32 main() {
   enum class EngineState {
     IN_GAME,
     LEVEL_EDITOR,
-    PHYSICS_EDITOR,
     TILE_SELECTION,
   };
 
+  /// @todo: Should I create a state machine file with procedures that validate the state before changing?
+  enum class EngineSubState {
+    /// @note: LEVEL_EDITOR SubState
+    TILE_PLACEMENT,
+    PHYSICS_PLACEMENT,
+    /// @note: ...
+  };
+
   EngineState engine_state = EngineState::LEVEL_EDITOR;
+  EngineSubState engine_substate = EngineSubState::TILE_PLACEMENT;
   Languages dictionary_index = CN;
 
   #if DEV == 1
@@ -196,9 +207,28 @@ s32 main() {
   bool showMessageBox = false;
   f32 cooldown_timer = 0;
 
+  struct PhysicsBlock {
+    Vector2 top_left;
+    Vector2 bottom_right;
+  };
+
+  const u32 total_blocks = 50;
+  PhysicsBlock blocks[total_blocks] = {};
+  for(u32 i = 0; i < total_blocks; i++) {
+    blocks[i].top_left = {-1, -1};
+    blocks[i].bottom_right = {-1, -1};
+  }
+
+  Vector2 physics_block_start_position = {};
+
+  bool is_first_physics_click = true;
+  u32 current_physics_block_index = 0;
+
   while(!WindowShouldClose()) {
     f32 dt = GetFrameTime();
     Vector2 mouse_position = GetMousePosition();
+    /// @todo: Maybe create a struct to have all input states.
+    bool mouse_down = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
     UpdateMusicStream(music);
 
     const char* level_file_path = "../level.txt";
@@ -210,10 +240,12 @@ s32 main() {
 
     if(IsKeyPressed(KEY_TWO)) {
       engine_state = EngineState::LEVEL_EDITOR;
+      engine_substate = EngineSubState::TILE_PLACEMENT;
     }
 
     if(IsKeyPressed(KEY_THREE)) {
-      engine_state = EngineState::PHYSICS_EDITOR;
+      engine_state = EngineState::LEVEL_EDITOR;
+      engine_substate = EngineSubState::PHYSICS_PLACEMENT;
     }
 
     if(IsKeyPressed(KEY_FOUR)) {
@@ -233,6 +265,8 @@ s32 main() {
     f32 jump_velocity = -1 * (( 2 * jump_height) / jump_time_to_peak);
     f32 jump_gravity  = -1 * ((-2 * jump_height) / (jump_time_to_peak * jump_time_to_peak));
     f32 fall_gravity  = -1 * ((-2 * jump_height) / (jump_time_to_descent * jump_time_to_descent));
+
+    const char* physics_level_path = "../physics.txt";
 
     switch(engine_state) {
       case EngineState::IN_GAME: {
@@ -285,92 +319,188 @@ s32 main() {
       } break;
 
       case EngineState::LEVEL_EDITOR: {
-        if(IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) {
-          FILE* file = fopen(level_file_path, "w");
+        switch(engine_substate) {
+          case EngineSubState::TILE_PLACEMENT: {
+            if(IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) {
+              FILE* file = fopen(level_file_path, "w");
 
-          for(u32 col = 0; col < level_height; col++) {
-            for(u32 row = 0; row < level_width; row++) {
-              fprintf(file, "%f %f\n", level[col][row].x, level[col][row].y);
+              for(u32 col = 0; col < level_height; col++) {
+                for(u32 row = 0; row < level_width; row++) {
+                  fprintf(file, "%f %f\n", level[col][row].x, level[col][row].y);
+                }
+              }
+
+              fclose(file);
+              // log("Level saved");
             }
-          }
 
-          log("Level saved");
-        }
+            if(mouse_down && FloatEquals(cooldown_timer, 0)) {
+            // if(mouse_down) {
+              // log("placing tile...");
+              Vector2 level_position = (mouse_position + camera2D.target) / (TILE_SIZE * level_tile_scale);
+              u32 x = (u32)floor(Clamp(level_position.x, 0, level_width));
+              u32 y = (u32)floor(Clamp(level_position.y, 0, level_height));
+              level[y][x] = selected_tile;
 
-        if(IsMouseButtonDown(0) && FloatEquals(cooldown_timer, 0)) {
-          Vector2 level_position = (mouse_position + camera2D.target) / (TILE_SIZE * level_tile_scale);
-          u32 x = (u32)floor(Clamp(level_position.x, 0, level_width));
-          u32 y = (u32)floor(Clamp(level_position.y, 0, level_height));
+              if(started_dragging == false) {
+                start_position = {(f32)x, (f32)y};
+                started_dragging = true;
+                // log("Selected Tile", selected_tile);
+                // printf("Selected file\n");
+                // fflush(stdout);
+                if(4 <= selected_tile.y && selected_tile.y <= 6
+                && 7 <= selected_tile.x && selected_tile.x <= 9) {
+                  editor_tile_type = EditorTileType::NINE_PATCH;
+                } else if(3 <= selected_tile.y && selected_tile.y <= 7
+                      && 3 <= selected_tile.x && selected_tile.x <= 6) {
+                        editor_tile_type = EditorTileType::HORIZONTAL_ONLY;
+                        level[y][x] = {3,selected_tile.y};
+                      } else {
+                          // editor_tile_type = EditorTileType::DEFAULT_ONE_TILE;
+                          // level[y][x] = selected_tile;
+                      }
+              } else {
+                /// @note: is dragging, mouse down
+                if(!FloatEquals(start_position.x, x) || !FloatEquals(start_position.y, y)) {
 
-          if(started_dragging == false) {
-            start_position = {(f32)x, (f32)y};
-            started_dragging = true;
-            log("Selected Tile", selected_tile);
-            if(4 <= selected_tile.y && selected_tile.y <= 6
-            && 7 <= selected_tile.x && selected_tile.x <= 9) {
-              editor_tile_type = EditorTileType::NINE_PATCH;
-            } else if(3 <= selected_tile.y && selected_tile.y <= 7
-                  && 3 <= selected_tile.x && selected_tile.x <= 6) {
-                    editor_tile_type = EditorTileType::HORIZONTAL_ONLY;
-                    level[y][x] = {3,selected_tile.y};
-                  } else {
-                      editor_tile_type = EditorTileType::DEFAULT_ONE_TILE;
-                      level[y][x] = selected_tile;
+                /// @note: hmmmmm, too hardcoded...
+                  switch(editor_tile_type) {
+                    case EditorTileType::DEFAULT_ONE_TILE: { level[y][x] = selected_tile; break; };
+                    case EditorTileType::HORIZONTAL_ONLY: {
+                      if(x > start_position.x) {
+                        /// @note: right
+                        level[(u32)start_position.y][(u32)start_position.x] = {4,(f32)selected_tile.y};
+                        for(u32 ii = 0; ii < x - start_position.x; ii++) {
+                          level[(u32)start_position.y][(u32)start_position.x+ii+1] = {5,(f32)selected_tile.y};
+                        }
+                        level[(u32)start_position.y][x] = {6,(f32)selected_tile.y};
+                      }
+                      if(x < start_position.x) {
+                        /// @note: left
+                        level[(u32)start_position.y][(u32)start_position.x] = {6,(f32)selected_tile.y};
+                        for(u32 ii = 0; ii < start_position.x - x; ii++) {
+                          level[(u32)start_position.y][(u32)start_position.x-ii-1] = {5,(f32)selected_tile.y};
+                        }
+                        level[(u32)start_position.y][x] = {4,(f32)selected_tile.y};
+                      }
+                      break;
+                    };
+                    case EditorTileType::VERTICAL_ONLY: { break; };
+                    case EditorTileType::NINE_PATCH: { break; };
                   }
-          } else {
-            /// @note: is dragging, mouse down
-            if(!FloatEquals(start_position.x, x) || !FloatEquals(start_position.y, y)) {
+                }
+                // if(start_position.x < x) {
+                  // level[y][x] = {4,3};
+                // }
+                // end_position = {x,y};
+              }
+            }
 
-            /// @note: hmmmmm, too hardcoded...
-              switch(editor_tile_type) {
-                case EditorTileType::DEFAULT_ONE_TILE: { level[y][x] = selected_tile; break; };
-                case EditorTileType::HORIZONTAL_ONLY: {
-                  if(x > start_position.x) {
-                    /// @note: right
-                    level[(u32)start_position.y][(u32)start_position.x] = {4,(f32)selected_tile.y};
-                    for(u32 ii = 0; ii < x - start_position.x; ii++) {
-                      level[(u32)start_position.y][(u32)start_position.x+ii+1] = {5,(f32)selected_tile.y};
-                    }
-                    level[(u32)start_position.y][x] = {6,(f32)selected_tile.y};
+            if(IsKeyPressed(KEY_Q)) {
+              FILE* file = fopen(level_file_path, "r");
+
+              for(u32 col = 0; col < level_height; col++) {
+                for(u32 row = 0; row < level_width; row++) {
+                  f32 x, y;
+                  fscanf(file, "%f", &x);
+                  fscanf(file, "%f", &y);
+                  level[col][row] = {x, y};
+
+                  /// @todo: hack: getting player position
+                  if((u32)x == 0 && (u32)y == 12) {
+                    player_position = {x, y};
+                    // log("Found player");
                   }
-                  if(x < start_position.x) {
-                    /// @note: left
-                    level[(u32)start_position.y][(u32)start_position.x] = {6,(f32)selected_tile.y};
-                    for(u32 ii = 0; ii < start_position.x - x; ii++) {
-                      level[(u32)start_position.y][(u32)start_position.x-ii-1] = {5,(f32)selected_tile.y};
-                    }
-                    level[(u32)start_position.y][x] = {4,(f32)selected_tile.y};
+                }
+              }
+
+              fclose(file);
+            }
+          } break;
+
+          case EngineSubState::PHYSICS_PLACEMENT: {
+            if(IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) {
+              FILE* file = fopen(physics_level_path, "w");
+
+              for(u32 index = 0; index < total_blocks; index++) {
+                PhysicsBlock b = blocks[index];
+                fprintf(file, "%f %f\n", b.top_left.x, b.top_left.y);
+                fprintf(file, "%f %f\n", b.bottom_right.x, b.bottom_right.y);
+              }
+
+              fclose(file);
+              // log("Physics saved");
+            }
+
+            if(IsKeyDown(KEY_Q)) {
+              FILE* file = fopen(physics_level_path, "r");
+              for(u32 index = 0; index < total_blocks; index++) {
+                f32 x, y;
+                fscanf(file, "%f", &x);
+                fscanf(file, "%f", &y);
+                blocks[index].top_left.x = x;
+                blocks[index].top_left.y = y;
+
+                fscanf(file, "%f", &x);
+                fscanf(file, "%f", &y);
+                blocks[index].bottom_right.x = x;
+                blocks[index].bottom_right.y = y;
+              }
+            }
+
+            if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+              Vector2 level_position = (mouse_position + camera2D.target) / (TILE_SIZE * level_tile_scale);
+              u32 x = (u32)floor(Clamp(level_position.x, 0, level_width));
+              u32 y = (u32)floor(Clamp(level_position.y, 0, level_height));
+              Vector2 p = {(f32)x, (f32)y};
+
+              if(is_first_physics_click) {
+                physics_block_start_position = p;
+                is_first_physics_click = false;
+              } else {
+                for(u32 index = 0; index < total_blocks; index++) {
+                  if(FloatEquals(blocks[index].top_left.x, -1)) {
+                    blocks[index].top_left = physics_block_start_position;
+                    blocks[index].bottom_right = p;
+                    break;
                   }
-                  break;
+                }
+                physics_block_start_position = {-1,-1};
+                is_first_physics_click = true;
+              }
+            }
+
+            if(IsKeyPressed(KEY_X)) {
+              for(u32 i = 0; i < total_blocks; i++) {
+                PhysicsBlock b = blocks[i];
+
+                /// @todo: Compress this code. Maybe have this rect inside the struct. Or have a function.
+                /// This is used for drawing and collision with mouse (for block removal). 
+                f32 far_x = b.bottom_right.x - b.top_left.x + 1;
+                f32 far_y = b.bottom_right.y - b.top_left.y + 1;
+                Rectangle block_rect = {
+                  b.top_left.x * TILE_SIZE * level_tile_scale,
+                  b.top_left.y * TILE_SIZE * level_tile_scale,
+                  far_x * TILE_SIZE * level_tile_scale,
+                  far_y * TILE_SIZE * level_tile_scale
                 };
-                case EditorTileType::VERTICAL_ONLY: { break; };
-                case EditorTileType::NINE_PATCH: { break; };
+
+                bool collided = CheckCollisionPointRec(mouse_position, block_rect);
+                if(collided) {
+                  /// @todo: Remove block
+                  blocks[i].top_left = {-1, -1};
+                  blocks[i].bottom_right = {-1, -1};
+                }
+
+
+          //   b.top_left.x * TILE_SIZE * level_tile_scale,
+          //   b.top_left.y * TILE_SIZE * level_tile_scale,
+          //   far_x * TILE_SIZE * level_tile_scale,
+          //   far_y * TILE_SIZE * level_tile_scale
               }
             }
-            // if(start_position.x < x) {
-              // level[y][x] = {4,3};
-            // }
-            // end_position = {x,y};
-          }
-        }
-
-        if(IsKeyPressed(KEY_Q)) {
-          FILE* file = fopen(level_file_path, "r");
-
-          for(u32 col = 0; col < level_height; col++) {
-            for(u32 row = 0; row < level_width; row++) {
-              f32 x, y;
-              fscanf(file, "%f", &x);
-              fscanf(file, "%f", &y);
-              level[col][row] = {x, y};
-
-              /// @todo: hack: getting player position
-              if((u32)x == 0 && (u32)y == 12) {
-                player_position = {x, y};
-                log("Found player");
-              }
-            }
-          }
+          } break;
+        /// @note: End of engine_substate switch case.
         }
       } break;
 
@@ -403,6 +533,7 @@ s32 main() {
 
         if(IsMouseButtonPressed(0)) {
           engine_state = EngineState::LEVEL_EDITOR;
+          engine_substate = EngineSubState::TILE_PLACEMENT;
           cooldown_timer = 0.3;
           camera2D.target = {};
         }
@@ -517,6 +648,20 @@ s32 main() {
             DrawLineV({0, (f32)TILE_SIZE * level_tile_scale * row}, {(f32)screen_width * level_tile_scale, (f32)TILE_SIZE * level_tile_scale * row}, WHITE);
           }
           DrawLineV({(f32)TILE_SIZE * level_tile_scale * col, 0}, {(f32)TILE_SIZE * level_tile_scale * col, (f32)screen_height * level_tile_scale}, WHITE);
+        }
+
+        for(u32 index = 0; index < total_blocks; index++) {
+          PhysicsBlock b = blocks[index];
+          f32 far_x = b.bottom_right.x - b.top_left.x + 1;
+          f32 far_y = b.bottom_right.y - b.top_left.y + 1;
+          u32 thickness = 3;
+          // col * TILE_SIZE * level_tile_scale + camera2D.target.x,
+          DrawRectangleLinesEx({
+            b.top_left.x * TILE_SIZE * level_tile_scale,
+            b.top_left.y * TILE_SIZE * level_tile_scale,
+            far_x * TILE_SIZE * level_tile_scale,
+            far_y * TILE_SIZE * level_tile_scale
+          }, thickness, GOLD);
         }
       } break;
 

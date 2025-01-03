@@ -4,6 +4,7 @@
 - Player movement
   - Variable jump height
   - Coyote time
+- Black bars
 - Rewind
 
 acc = 10
