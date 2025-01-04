@@ -1,19 +1,15 @@
 # raylib-template
 
-- Physics for tiles
 - Player movement
-  - Variable jump height
+  - Jump Buffer
   - Coyote time
-- Black bars
-- Rewind
-
-acc = 10
-max speed 20
-decc = 30
-
-jump height 4
-down gravity 3.7
-duration 3.2
+  - Variable jump height
+  - Air acc
+  - Bugs
+    - The player snap to floor above when the it hit the ceiling of the platform. It needs to check if the x velocity (sideways).
+    - Collision with walls does not work.
+- Black bars (On NX it would not make sense since this is rendered at the same resolution of the NX system. Do it in a way that is easy to toggle this behavior)
+- Rewind (Would local multiplayer rewind be an interesting game behavior?)
 
 jump cutoff 4.2
 air acc 10

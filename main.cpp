@@ -197,9 +197,9 @@ s32 main() {
   Vector2 player_velocity = {};
   f32 move_speed = 200;
 
-  f32 jump_height = 100;
-  f32 jump_time_to_peak    = 0.5;
-  f32 jump_time_to_descent = 0.4;
+  f32 jump_height = 150;
+  f32 jump_time_to_peak    = 0.4;
+  f32 jump_time_to_descent = 0.3;
 
   bool showMessageBox = false;
   f32 cooldown_timer = 0;
@@ -220,6 +220,9 @@ s32 main() {
 
   bool is_first_physics_click = true;
   u32 current_physics_block_index = 0;
+
+  /// @todo: Should it be deceleration instead of friction?
+  f32 friction = 0.85;
 
   while(!WindowShouldClose()) {
     f32 dt = GetFrameTime();
@@ -256,7 +259,6 @@ s32 main() {
 
     /// @note: Input(); 
     s32 speed = 400;
-    f32 friction = 0.85;
     /// @note: Copied from https://gist.github.com/sjvnnings/5f02d2f2fc417f3804e967daa73cccfd
     /// @todo: Move closer to where it is being used in the update section.
     f32 jump_velocity = -1 * (( 2 * jump_height) / jump_time_to_peak);
@@ -594,7 +596,10 @@ s32 main() {
       // Rectangle ground = {0,screen_height-scaled_tile_size*2, screen_width, scaled_tile_size*2};
       // bool hit_ground = CheckCollisionRecs({player_position.x,player_position.y,scaled_tile_size,scaled_tile_size}, ground);
       bool hit_ground = false;
-      f32 ground_y = -1;
+      // f32 ground_y = -1;
+      // f32 ceiling_y = -1;
+      // f32 left_wall = -1;
+      // f32 right_wall = -1;
       for(u32 index = 0; index < total_blocks; index++) {
         /// @todo: Copy-Pasta from editor rendering.
         PhysicsBlock b = blocks[index];
@@ -612,18 +617,78 @@ s32 main() {
 
         hit_ground = CheckCollisionRecs({player_position.x,player_position.y,scaled_tile_size,scaled_tile_size}, ground);
         if(hit_ground) {
-          ground_y = ground.y;
+          // ground_y = ground.y;
+          // ceiling_y = ground.y + ground.height;
+          // left_wall = ground.x;
+          // right_wall = ground.x + ground.width;
+          // if ((rec1.x < (rec2.x + rec2.width)  && (rec1.x + rec1.width)  > rec2.x) &&
+          //     (rec1.y < (rec2.y + rec2.height) && (rec1.y + rec1.height) > rec2.y))
+
+          // player_position.x -= fabs(player_position.x - ground.x);
+          // player_position.y -= fabs(player_position.y - ground.y);
+
+          f32 player_size = 16;
+          if(player_position.x < (ground.x + ground.width)
+          && ground.x < (player_position.x + player_size)) {
+            /// @note: x axis collision response
+            if((player_position.x + player_size / 2) < (ground.x + ground.width / 2)) {
+              /// @note: player is on the left
+              f32 delta_x = ground.x - player_position.x + player_size;
+              player_position.x += delta_x;
+              player_velocity.x = 0;
+            } else {
+              /// @note: player is on the right
+              f32 delta_x = player_position.x - ground.x + ground.width;
+              player_position.x += delta_x;
+              player_velocity.x = 0;
+            }
+          }
+
+          if(player_position.y < (ground.y + ground.height)
+          && ground.y < (player_position.y + player_size)) {
+            /// @note: y axis collision response
+            if((player_position.y + player_size / 2) < (ground.y + ground.height)) {
+              /// @note: player is on top
+              f32 delta_y = ground.y;
+              player_position.y = delta_y;
+              player_velocity.y = 0;
+              // log("Player is on top", delta_y);
+            } else {
+              /// @note: player is on bottom
+              f32 delta_y = ground.y + ground.height;
+              player_position.y = delta_y;
+              player_velocity.y = 1;
+            }
+          }
           break;
         };
       }
 
-      if(hit_ground) {
-        player_velocity.y = 0;
-        player_position.y = ground_y - scaled_tile_size + 1;
-      } else {
-        f32 g = player_velocity.y < 0 ? jump_gravity : fall_gravity;
+        bool is_moving_up = player_velocity.y < 0;
+        f32 g = is_moving_up ? jump_gravity : fall_gravity;
         player_velocity.y += g * dt;
+      if(!FloatEquals(player_velocity.y, 0)) {
       }
+      // if(hit_ground && !is_moving_up) {
+      //   player_velocity.y = 0;
+      //   player_position.y = ground_y - scaled_tile_size + 1;
+      // } else if(hit_ground && is_moving_up) {
+      //   player_velocity.y = 1;
+      //   player_position.y = ceiling_y;
+      // } else {
+      //   f32 g = is_moving_up ? jump_gravity : fall_gravity;
+      //   player_velocity.y += g * dt;
+      // }
+
+      // bool is_moving_right = player_velocity.x > 0;
+      // if(hit_ground && is_moving_right) {
+      //   // player_velocity.x = 0;
+      //   player_position.x = left_wall;
+      // } 
+      // else if(hit_ground && !is_moving_right) {
+        // player_velocity.x = 0;
+        // player_position.x = right_wall;
+      // }
 
       player_position.y += player_velocity.y * dt;
       player_position.x += player_velocity.x * dt;
@@ -631,7 +696,8 @@ s32 main() {
 
     /// @note: Draw();
     BeginDrawing();
-    ClearBackground({0x37, 0x41, 0x51});
+    Color bg_color = {0x37, 0x41, 0x51};
+    ClearBackground(bg_color);
     BeginMode2D(camera2D);
 
     switch(engine_state) {
@@ -686,7 +752,6 @@ s32 main() {
           f32 far_x = b.bottom_right.x - b.top_left.x + 1;
           f32 far_y = b.bottom_right.y - b.top_left.y + 1;
           u32 thickness = 3;
-          // col * TILE_SIZE * level_tile_scale + camera2D.target.x,
           DrawRectangleLinesEx({
             b.top_left.x * TILE_SIZE * level_tile_scale,
             b.top_left.y * TILE_SIZE * level_tile_scale,
@@ -725,9 +790,7 @@ s32 main() {
                   TILE_SIZE * level_tile_scale, TILE_SIZE * level_tile_scale
                 }, {0,0}, 0, WHITE);
             }
-            // DrawLineV({0, (f32)TILE_SIZE * level_tile_scale * row}, {(f32)screen_width * level_tile_scale, (f32)TILE_SIZE * level_tile_scale * row}, WHITE);
           }
-          // DrawLineV({(f32)TILE_SIZE * level_tile_scale * col, 0}, {(f32)TILE_SIZE * level_tile_scale * col, (f32)screen_height * level_tile_scale}, WHITE);
         }
       } break;
     }
@@ -791,10 +854,10 @@ s32 main() {
           }, thickness, GOLD);
         }
 
-        Rectangle slider = {10, 10, 200, 20};
-        u32 slider_count = 4;
+        Rectangle slider = {10, 10, 1000, 20};
+        u32 slider_count = 3;
         u32 gap = 10;
-        DrawRectangleRec({0, 0, screen_width, (slider.height * slider_count) + (gap * (slider_count + 1))}, BLACK);
+        DrawRectangleRec({0, 0, screen_width, (slider.height * slider_count) + (gap * (slider_count + 1))}, GRAY);
 
         GuiSlider(slider, NULL, TextFormat("jump_height: %.2fs", jump_height), &jump_height, 1, 1000);
 
@@ -804,8 +867,9 @@ s32 main() {
         slider.y += slider.height + gap;
         GuiSlider(slider, NULL, TextFormat("jump_time_to_descent: %.2fs", jump_time_to_descent), &jump_time_to_descent, 0, 1);
 
-        slider.y += slider.height + gap;
-        GuiSlider(slider, NULL, TextFormat("friction: %.2fs", friction), &friction, 0, 2);
+        // slider.y += slider.height + gap;
+        // slider.width = 200;
+        // GuiSlider(slider, NULL, TextFormat("friction: %.2fs", friction), &friction, 0, 2);
       } break;
     }
 
