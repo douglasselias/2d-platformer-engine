@@ -4,12 +4,9 @@
   - Jump Buffer
   - Coyote time
   - Variable jump height
-  - Air acc
-  - Bugs
-    - The player snap to floor above when the it hit the ceiling of the platform. It needs to check if the x velocity (sideways).
-    - Collision with walls does not work.
+  - Air acc + air friction + ground friction
 - Black bars (On NX it would not make sense since this is rendered at the same resolution of the NX system. Do it in a way that is easy to toggle this behavior)
-- Rewind (Would local multiplayer rewind be an interesting game behavior?)
+- Rewind (Would local multiplayer rewind be an interesting gameplay?)
 
 jump cutoff 4.2
 air acc 10

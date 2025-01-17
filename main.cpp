@@ -287,7 +287,7 @@ s32 main() {
           player_velocity.x += speed * dt;
           last_was_left = false;
         } else {
-          if(FloatEquals(player_velocity.y, 0))
+          // if(FloatEquals(player_velocity.y, 0)) 
             player_velocity.x *= friction;
         }
 
@@ -593,104 +593,79 @@ s32 main() {
     /// @note: Update();
     if(engine_state == EngineState::IN_GAME) {
       f32 scaled_tile_size = TILE_SIZE * level_tile_scale;
-      // Rectangle ground = {0,screen_height-scaled_tile_size*2, screen_width, scaled_tile_size*2};
-      // bool hit_ground = CheckCollisionRecs({player_position.x,player_position.y,scaled_tile_size,scaled_tile_size}, ground);
       bool hit_ground = false;
-      // f32 ground_y = -1;
-      // f32 ceiling_y = -1;
-      // f32 left_wall = -1;
-      // f32 right_wall = -1;
       for(u32 index = 0; index < total_blocks; index++) {
         /// @todo: Copy-Pasta from editor rendering.
         PhysicsBlock b = blocks[index];
         /// @todo: Maybe this if is unnecessary.
         if(FloatEquals(b.top_left.x, -1)) continue;
+
         f32 far_x = b.bottom_right.x - b.top_left.x + 1;
         f32 far_y = b.bottom_right.y - b.top_left.y + 1;
         u32 thickness = 3;
         Rectangle ground = {
           b.top_left.x * scaled_tile_size,
           b.top_left.y * scaled_tile_size,
-          far_x * scaled_tile_size,
-          far_y * scaled_tile_size
+          far_x        * scaled_tile_size,
+          far_y        * scaled_tile_size
         };
 
+        bool is_moving_left  = player_velocity.x < 0;
+        bool is_moving_right = player_velocity.x > 0;
+        bool is_moving_up    = player_velocity.y < 0;
+        bool is_moving_down  = player_velocity.y > 0;
+
         /// @todo: Probably, it is better to just have a Rectangle player.
-        hit_ground = CheckCollisionRecs({player_position.x,player_position.y,scaled_tile_size,scaled_tile_size}, ground);
+        Rectangle player_rect = {
+          player_position.x,
+          player_position.y,
+          scaled_tile_size,
+          scaled_tile_size
+        };
+        f32 px = player_position.x + player_velocity.x * dt;
+        f32 py = player_position.y + player_velocity.y * dt;
+        player_rect.y = py;
+        hit_ground = CheckCollisionRecs(player_rect, ground);
         if(hit_ground) {
-          // ground_y = ground.y;
-          // ceiling_y = ground.y + ground.height;
-          // left_wall = ground.x;
-          // right_wall = ground.x + ground.width;
-          // if ((rec1.x < (rec2.x + rec2.width)  && (rec1.x + rec1.width)  > rec2.x) &&
-          //     (rec1.y < (rec2.y + rec2.height) && (rec1.y + rec1.height) > rec2.y))
+          if(is_moving_down) player_position.y = ground.y - scaled_tile_size;
+          else if(is_moving_up) player_position.y = ground.y + ground.width;
+          player_velocity.y = 0;
+          // log("stop y");
+        }
 
-          // player_position.x -= fabs(player_position.x - ground.x);
-          // player_position.y -= fabs(player_position.y - ground.y);
-
-          // f32 player_size = 16;
-          // if(player_position.x < (ground.x + ground.width)
-          // && ground.x < (player_position.x + player_size)) {
-          //   /// @note: x axis collision response
-          //   if((player_position.x + player_size / 2) < (ground.x + ground.width / 2)) {
-          //     /// @note: player is on the left
-          //     f32 delta_x = ground.x - player_position.x + player_size;
-          //     player_position.x += delta_x;
-          //     player_velocity.x = 0;
-          //   } else {
-          //     /// @note: player is on the right
-          //     f32 delta_x = player_position.x - ground.x + ground.width;
-          //     player_position.x += delta_x;
-          //     player_velocity.x = 0;
-          //   }
-          // }
-
-          // if(player_position.y < (ground.y + ground.height)
-          // && ground.y < (player_position.y + player_size)) {
-          //   /// @note: y axis collision response
-          //   if((player_position.y + player_size / 2) < (ground.y + ground.height)) {
-          //     /// @note: player is on top
-          //     f32 delta_y = ground.y;
-          //     player_position.y = delta_y;
-          //     player_velocity.y = 0;
-          //     // log("Player is on top", delta_y);
-          //   } else {
-          //     /// @note: player is on bottom
-          //     f32 delta_y = ground.y + ground.height;
-          //     player_position.y = delta_y;
-          //     player_velocity.y = 1;
-          //   }
-          // }
-
+        player_rect.x = px;
+        player_rect.y = player_position.y;
+        hit_ground = CheckCollisionRecs(player_rect, ground);
+        if(hit_ground) {
+          // if(is_moving_down) player_position.y = ground.y - scaled_tile_size;
+          player_velocity.x = 0;
+        }
+        if(hit_ground) {
           ///////// New implementation
           // f32 dx = 0;
           // f32 dy = 0;
 
           // f32 px = player_position.x;
           // f32 py = player_position.y;
-          // f32 pw = player_size;
-          // f32 ph = player_size;
 
           // f32 gx = ground.x;
           // f32 gy = ground.y;
-          // f32 gw = ground.width;
-          // f32 gh = ground.height;
 
           // if(px < gx) {
-          //   dx = gx - (px + ph);
+          //   dx = gx - (px + scaled_tile_size);
           // } else if(px > gx) {
-          //   dx = px - (gx + gw);
+          //   dx = px - (gx + ground.width);
           // }
 
           // if(py < gy) {
-          //   dy = gy - (py + ph);
+          //   dy = gy - (py + scaled_tile_size);
           // } else if (py > gy) {
-          //   dy = py - (gy + gh);
+          //   dy = py - (gy + ground.height);
           // }
 
-          // Another entity occupies that space. Use separating axis theorem (SAT)
-          // to see how much we can move, and then move accordingly, resolving at whichever
-          // axis collides first by time (not whichever one is the smallest diff).
+          // // // Another entity occupies that space. Use separating axis theorem (SAT)
+          // // // to see how much we can move, and then move accordingly, resolving at whichever
+          // // // axis collides first by time (not whichever one is the smallest diff).
           
           // f32 pvx = player_velocity.x;
           // f32 pvy = player_velocity.y;
@@ -704,7 +679,7 @@ s32 main() {
           // f32 shortest_time = 0;
 
           // if (x_moving && y_not_moving) {
-          //   // Colliison on X-axis only
+          //   // Collison on X-axis only
           //   shortest_time = x_axis_time_to_collide;
           //   player_position.x = shortest_time * pvx;
           // } else if (x_not_moving && y_moving) {
@@ -713,56 +688,85 @@ s32 main() {
           //   player_position.y = shortest_time * pvy;
           // } else {
           //   // Collision on X and Y axis (eg. slide up against a wall)
-          //   shortest_time = min(abs(x_axis_time_to_collide), abs(y_axis_time_to_collide));
+          //   shortest_time = min(x_axis_time_to_collide, y_axis_time_to_collide);
           //   player_position.x = shortest_time * pvx;
           //   player_position.y = shortest_time * pvy;
           // }
 
-          // var halfElapsed = TimeSpan.FromMilliseconds(elapsed.TotalMilliseconds / 2);
           // // Resolve collisions twice to stabilize multi-collisions.
-          // this.ProcessMovement(halfElapsed, entity);
-          // this.ProcessMovement(halfElapsed, entity);
+          // var halfElapsed = dt / 2;
+          // ProcessMovement(halfElapsed);
+          // ProcessMovement(halfElapsed);
 
           //////// End
 
-          bool is_moving_in_the_x_axis = !FloatEquals(player_velocity.x, 0);
-          bool is_moving_in_the_y_axis = !FloatEquals(player_velocity.y, 0);
-          bool is_moving_left  = player_velocity.x < 0;
-          bool is_moving_right = player_velocity.x > 0;
-          bool is_moving_up    = player_velocity.y < 0;
-          bool is_moving_down  = player_velocity.y > 0;
+// function checkCollision(obj1, obj2)
+//     local right = (obj1.x+obj1.width) - obj2.x
+//     local left = (obj2.x+obj2.width) - obj1.x
+//     local bottom = (obj1.y+obj1.height) - obj2.y
+//     local top = (obj2.y+obj2.height) - obj1.y
+    
+//     if right < left and right < top and right < bottom then
+//         --Right collision for obj1, left for obj2
+//         return "right"
+//     elseif left < top and left < bottom then
+//         --Left collision for obj1, right for obj2
+//         return "left"
+//     elseif top < bottom then
+//         --Top collision for obj1, bottom for obj2
+//         return "top"
+//     else
+//         --Bottom collision for obj1, top for obj2
+//         return "bottom"
+//     end
+// end
 
-          /// @note: The overlap is from the player perspective. How much the player rect overlap with the collision box.
-          f32 overlap_size_left   = player_position.x + scaled_tile_size - ground.x;
-          f32 overlap_size_right  = player_position.x - ground.x + ground.width;
-          f32 overlap_size_top    = ground.y + ground.height - player_position.y;
-          f32 overlap_size_bottom = player_position.y + scaled_tile_size - ground.y;
 
-          if(is_moving_in_the_x_axis) {
-            if(is_moving_left && overlap_size_left < 0 && player_position.x + scaled_tile_size > ground.x && player_position.x < ground.x) {
-              player_position.x = ground.x - scaled_tile_size;
-            }
+          // f32 half_dt = dt / 2;
+          // u8 iteration = 0;
+          // physics:
 
-            if(is_moving_right && overlap_size_right > 0 && player_position.x < ground.x + ground.width && player_position.x + scaled_tile_size > ground.x + ground.width) {
-              player_position.x = ground.x + ground.width;
-            }
+          // bool is_moving_in_the_x_axis = !FloatEquals(player_velocity.x, 0);
+          // bool is_moving_in_the_y_axis = !FloatEquals(player_velocity.y, 0);
+          // bool is_moving_left  = player_velocity.x < 0;
+          // bool is_moving_right = player_velocity.x > 0;
+          // bool is_moving_up    = player_velocity.y < 0;
+          // bool is_moving_down  = player_velocity.y > 0;
 
-            /// @todo: Remove from other places this velocity reduction. This is the correct place to be.
-            /// Maybe add air friction as well.
-            player_velocity.x *= 0.95;
-          }
+          // /// @note: The overlap is from the player perspective. How much the player rect overlap with the collision box.
+          // f32 overlap_size_left   = ground.x + ground.width - player_position.x;
+          // f32 overlap_size_right  = player_position.x + scaled_tile_size - ground.x;
+          // f32 overlap_size_top    = ground.y + ground.height - player_position.y;
+          // f32 overlap_size_bottom = player_position.y + scaled_tile_size - ground.y;
 
-          if(is_moving_in_the_y_axis) {
-            if(is_moving_up && overlap_size_top < 0 && player_position.y < ground.y + ground.height && player_position.y + scaled_tile_size > ground.y) {
-              player_position.y = ground.y + ground.height;
-            }
+          // // if(is_moving_in_the_x_axis) {
+          //   if(is_moving_left && overlap_size_left > 0 && player_position.x + scaled_tile_size > ground.x + ground.width) {
+          //     player_position.x = ground.x + ground.width;
+          //   }
 
-            if(is_moving_down && overlap_size_bottom > 0 && player_position.y + scaled_tile_size > ground.y && player_position.y > ground.y) {
-              player_position.y = ground.y - scaled_tile_size;
-            }
+          //   else
+          //   if(is_moving_right && overlap_size_right > 0 && player_position.x < ground.x) {
+          //     player_position.x = ground.x - scaled_tile_size;
+          //   }
+          // // }
 
-            player_velocity.y = 0;
-          }
+          // if(is_moving_in_the_y_axis) {
+          //   if(is_moving_up && overlap_size_top < 0 && player_position.y < ground.y + ground.height && player_position.y + scaled_tile_size > ground.y) {
+          //     player_position.y = ground.y + ground.height;
+          //   }
+
+          //   else
+          //   if(is_moving_down && overlap_size_bottom > 0 && player_position.y + scaled_tile_size > ground.y && player_position.y < ground.y) {
+          //     player_position.y = ground.y - scaled_tile_size;
+          //   }
+
+          //   player_velocity.y = 0;
+          // }
+
+          // iteration++;
+          // if(iteration <= 10) goto physics;
+
+          /////////////////////qqqqqqqqqqqqqqqqqq
 
           // bool is_not_moving = !is_moving_in_the_x_axis && !is_moving_in_the_y_axis;
           // if(not_moving) {
@@ -770,7 +774,6 @@ s32 main() {
           // }
 
           // if(overlap_x < overlap_y) {
-          //   /// @note: Collision on X axis
           //   if(player_position.x < ground.x) {
           //     /// @note: Collision on the left side
           //     player_position.x = ground.x - scaled_tile_size;
@@ -782,9 +785,7 @@ s32 main() {
           //   }
 
           //   player_velocity.x = 0;
-          //   log("player_position.x", player_position.x);
           // } else {
-          //   /// @note: Collision on Y axis
           //   if(player_position.y < ground.y) {
           //     /// @note: Collision on the top side
           //     player_position.y = ground.y - scaled_tile_size;
@@ -802,10 +803,12 @@ s32 main() {
       }
 
         bool is_moving_up = player_velocity.y < 0;
-        f32 g = is_moving_up ? jump_gravity : fall_gravity;
-        player_velocity.y += g * dt;
-        if(!FloatEquals(player_velocity.y, 0)) {
-        }
+        f32 gravity = is_moving_up ? jump_gravity : fall_gravity;
+        player_velocity.y += gravity * dt;
+
+        // if(!FloatEquals(player_velocity.y, 0)) {
+        // }
+
       // if(hit_ground && !is_moving_up) {
       //   player_velocity.y = 0;
       //   player_position.y = ground_y - scaled_tile_size + 1;
@@ -827,8 +830,9 @@ s32 main() {
         // player_position.x = right_wall;
       // }
 
-      player_position.y += player_velocity.y * dt;
-      player_position.x += player_velocity.x * dt;
+      // player_position.x += player_velocity.x * dt;
+      // player_position.y += player_velocity.y * dt;
+      player_position += player_velocity * dt;
     }
 
     /// @note: Draw();
