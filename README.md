@@ -1,6 +1,8 @@
 # raylib-template
 
 - Player movement
+  - Air control, must continue the x acc on air
+  - Turn Speed
   - Jump Buffer
   - Coyote time
   - Variable jump height
