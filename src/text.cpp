@@ -98,13 +98,3 @@ Font load_font() {
   SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
   return font;
 }
-
-void draw_text_centered(const char* text, f32 y, Color color, bool shadow_text = false) {
-  static Font font = GetFontDefault();
-  static u8 font_size = 32;
-  static u8 font_spacing = 4;
-  Vector2 text_size = MeasureTextEx(font, text, font_size, font_spacing);
-  Vector2 position = {screen_center.x - text_size.x/2, y};
-  if(shadow_text) DrawTextEx(font, text, position + 3, font_size, font_spacing, BLACK);
-  DrawTextEx(font, text, position, font_size, font_spacing, color);
-}

@@ -38,7 +38,7 @@ if %ERRORLEVEL% neq 0 (
 rc /nologo /r ..\icons\resource.rc
 move ..\icons\resource.res ..\build >nul
 
-set linker_debug_flags=/debug /incremental:no /cgthreads:8 /time /WX /STACK:0x100000,0x100000 kernel32.lib
+set linker_debug_flags=/debug /incremental:no /cgthreads:8 /WX /STACK:0x100000,0x100000 kernel32.lib
 @REM set linker_release_flags=
 
 link /nologo %linker_debug_flags% %vendor_libs% %system_libs% main.obj resource.res /out:game.exe

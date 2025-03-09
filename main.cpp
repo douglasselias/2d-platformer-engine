@@ -41,16 +41,64 @@
   #endif
 #endif
 
-#include "src/screen.cpp"
 #include "src/text.cpp"
-
 #include "src/tailwind_palette.cpp"
 
-s32 main() {
-  // puts("-----------");
-  // puts("Game Logs |");
-  // puts("__________|");
+const char *game_title = "Game";
+const u16 screen_width  = 1280;
+const u16 screen_height = 720;
+const u16 half_screen_width  = screen_width  / 2;
+const u16 half_screen_height = screen_height / 2;
+const Vector2 screen_center = {half_screen_width, half_screen_height};
+u32 monitor_width  = 0;
+u32 monitor_height = 0;
 
+void init_screen() {
+  // SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+  SetTraceLogLevel(LOG_WARNING);
+  InitWindow(screen_width, screen_height, game_title);
+  // SetWindowState(FLAG_WINDOW_UNDECORATED);
+
+  #if DEV == 1
+  Image icon = LoadImage("../icons/game16.png");
+  #elif EXPORT_ICON == 1
+  Image icon = LoadImage("../icons/game16.png");
+  if(ExportImageAsCode(icon, "../bundle/icon.cpp")) {
+    puts("Success! (Icon Exported)");
+    FILE* bundle_file = fopen("../bundle/icon.cpp", "a");
+    const char* i = TextToUpper("icon");
+    fprintf(bundle_file, 
+      "\nImage icon = { \n"
+      "\t%s_DATA, \n"
+      "\t%s_WIDTH, \n"
+      "\t%s_HEIGHT, \n"
+      "\t1, \n"
+      "\t%s_FORMAT, \n"
+      "};\n", i, i, i, i);
+    puts("Success! (Added icon struct)");
+  }
+  #endif
+
+  SetWindowIcon(icon);
+  SetTargetFPS(120);
+
+  InitAudioDevice();
+  SetRandomSeed((u32)GetTime());
+
+  s32 display = GetCurrentMonitor();
+  monitor_width  = GetMonitorWidth(display);
+  monitor_height = GetMonitorHeight(display);
+}
+
+void draw_texture(Texture2D texture, Vector2 position, f32 scale = 1, Color tint = WHITE) {
+  Rectangle source = {0, 0, (f32)texture.width, (f32)texture.height};
+  Rectangle dest = {position.x, position.y, (f32)texture.width * scale, (f32)texture.height * scale};
+  Vector2 origin = {0,0};
+  u8 rotation = 0;
+  DrawTexturePro(texture, source, dest, origin, rotation, tint);
+}
+
+s32 main() {
   init_screen();
   init_i18n();
 
@@ -212,7 +260,7 @@ s32 main() {
   const u32 total_blocks = 50;
   PhysicsBlock blocks[total_blocks] = {};
   for(u32 i = 0; i < total_blocks; i++) {
-    blocks[i].top_left = {-1, -1};
+    blocks[i].top_left     = {-1, -1};
     blocks[i].bottom_right = {-1, -1};
   }
 
@@ -224,6 +272,19 @@ s32 main() {
   /// @todo: Should it be deceleration instead of friction?
   f32 friction = 0.85;
   f32 air_friction = 1;
+
+  struct Input {
+    bool is_pressing_left;
+    bool is_pressing_right;
+    bool was_jump_pressed;
+  };
+
+  Input player_input = {};
+
+  bool is_player_grounded = false;
+
+  bool last_was_left = false;
+  u32 turn_speed_multiplier = 50;
 
   while(!WindowShouldClose()) {
     f32 dt = GetFrameTime();
@@ -270,34 +331,33 @@ s32 main() {
 
     switch(engine_state) {
       case EngineState::IN_GAME: {
-        static bool last_was_left = false;
-        u32 turn_speed_multiplier = 3;
-
         if(IsKeyDown(KEY_A)) {
+          // player_input.is_pressing_left = true;
           if(!last_was_left) {
-            player_velocity.x *= friction;
-            player_velocity.x -= speed * turn_speed_multiplier * dt;
+            // player_velocity.x *= friction;
+            // player_velocity.x -= speed * turn_speed_multiplier * dt;
           }
           player_velocity.x -= speed * dt;
           last_was_left = true;
         } else if(IsKeyDown(KEY_D)) {
           if(last_was_left) {
-            player_velocity.x *= friction;
-            player_velocity.x += speed * turn_speed_multiplier * dt;
+            // player_velocity.x *= friction;
+            // player_velocity.x += speed * turn_speed_multiplier * dt;
           }
           player_velocity.x += speed * dt;
           last_was_left = false;
-        } else {
-          log("no pressing buttons");
-          log("Vel Y", player_velocity.y);
-          /// @todo: Super hacky thing!!! Velocity.y should not be hardcoded!!!
-          if(player_velocity.y > 50) {
-            log("y is zero");
-            player_velocity.x *= friction;
-          } else {
-            log("air friction");
-            player_velocity.x *= air_friction;
-          }
+        // } else {
+          // if(player_velocity.y < 0.5) {
+          //   // log("y is zero");
+          //   // log("Vel Y", player_velocity.y);
+          //   player_velocity.x *= friction;
+          //   if(player_velocity.x < 0) player_velocity.x = 0;
+          //   else player_velocity.x -= friction * dt;
+          // } else {
+          //   log("air friction");
+          //   log("Vel Y", player_velocity.y);
+          //   player_velocity.x *= air_friction;
+          // }
         }
 
         f32 percent_speed = 0.9;
@@ -325,8 +385,9 @@ s32 main() {
 
             if(hit_ground) {
               player_velocity.y = jump_velocity;
-              /// @todo: super hacky!!!! duplicate code
+              /// @todo: Super hacky!!!! Duplicated code!!!
               player_position.y += player_velocity.y * dt;
+              is_player_grounded = false;
             }
           }
 
@@ -336,7 +397,7 @@ s32 main() {
           //   player_position.y += player_velocity.y * dt;
           // }
         }
-        
+
         /// @todo: This code should be removed on release.
         if(IsKeyPressed(KEY_F)) {
           if(IsMusicStreamPlaying(music)) PauseMusicStream(music);
@@ -598,13 +659,22 @@ s32 main() {
 
     /// @note: Update();
     if(engine_state == EngineState::IN_GAME) {
-      f32 scaled_tile_size = TILE_SIZE * level_tile_scale;
+      u8 physics_step = 0;
+      u8 total_steps = 60;
+      physics_loop:
+
       bool hit_ground = false;
+      bool is_moving_left  = player_velocity.x < 0;
+      bool is_moving_right = player_velocity.x > 0;
+      bool is_moving_up    = player_velocity.y < 0;
+      bool is_moving_down  = player_velocity.y > 0;
+
+      // player_velocity.x *= hit_ground && is_moving_down ? friction : air_friction * (dt / total_steps);
+
+      f32 scaled_tile_size = TILE_SIZE * level_tile_scale;
       for(u32 index = 0; index < total_blocks; index++) {
         /// @todo: Copy-Pasta from editor rendering.
         PhysicsBlock b = blocks[index];
-        /// @todo: Maybe this if is unnecessary.
-        if(FloatEquals(b.top_left.x, -1)) continue;
 
         f32 far_x = b.bottom_right.x - b.top_left.x + 1;
         f32 far_y = b.bottom_right.y - b.top_left.y + 1;
@@ -616,11 +686,6 @@ s32 main() {
           far_y        * scaled_tile_size
         };
 
-        bool is_moving_left  = player_velocity.x < 0;
-        bool is_moving_right = player_velocity.x > 0;
-        bool is_moving_up    = player_velocity.y < 0;
-        bool is_moving_down  = player_velocity.y > 0;
-
         /// @todo: Probably, it is better to just have a Rectangle player.
         Rectangle player_rect = {
           player_position.x,
@@ -628,12 +693,15 @@ s32 main() {
           scaled_tile_size,
           scaled_tile_size
         };
-        f32 px = player_position.x + player_velocity.x * dt;
-        f32 py = player_position.y + player_velocity.y * dt;
+        f32 px = player_position.x + player_velocity.x * (dt / total_steps);
+        f32 py = player_position.y + player_velocity.y * (dt / total_steps);
         player_rect.y = py;
         hit_ground = CheckCollisionRecs(player_rect, ground);
         if(hit_ground) {
-          if(is_moving_down) player_position.y = ground.y - scaled_tile_size;
+          if(is_moving_down) {
+            player_position.y = ground.y - scaled_tile_size;
+            is_player_grounded = true;
+          }
           else if(is_moving_up) player_position.y = ground.y + ground.width;
           player_velocity.y = 0;
         }
@@ -647,11 +715,20 @@ s32 main() {
         }
       }
 
-      bool is_moving_up = player_velocity.y < 0;
-      f32 gravity = is_moving_up ? jump_gravity : fall_gravity;
-      player_velocity.y += gravity * dt;
+      {
+        // bool is_moving_up = player_velocity.y < 0;
+        f32 gravity = is_moving_up ? jump_gravity : fall_gravity;
+        player_velocity.y += gravity * (dt / total_steps);
+      }
 
-      player_position += player_velocity * dt;
+      if(player_velocity.x > 0)
+        player_velocity.x -= (is_player_grounded ? (friction * 200) : (air_friction * 100)) * (dt / total_steps);
+      else
+        player_velocity.x += (is_player_grounded ? (friction * 200) : (air_friction * 100)) * (dt / total_steps);
+      // player_velocity.x = Clamp(player_velocity.x, 0, 1000);
+      player_position += player_velocity * (dt / total_steps);
+      physics_step++;
+      if(physics_step < total_steps) goto physics_loop; 
     }
 
     /// @note: Draw();
