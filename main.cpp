@@ -282,9 +282,13 @@ s32 main() {
   Input player_input = {};
 
   bool is_player_grounded = false;
+  bool player_jumped = false;
 
-  bool last_was_left = false;
-  u32 turn_speed_multiplier = 50;
+  // bool last_was_left = false;
+  // u32 turn_speed_multiplier = 50;
+
+  f32 coyote_time = 0;
+  bool has_coyote_time = false;
 
   while(!WindowShouldClose()) {
     f32 dt = GetFrameTime();
@@ -333,19 +337,19 @@ s32 main() {
       case EngineState::IN_GAME: {
         if(IsKeyDown(KEY_A)) {
           // player_input.is_pressing_left = true;
-          if(!last_was_left) {
+          // if(!last_was_left) {
             // player_velocity.x *= friction;
             // player_velocity.x -= speed * turn_speed_multiplier * dt;
-          }
+          // }
           player_velocity.x -= speed * dt;
-          last_was_left = true;
+          // last_was_left = true;
         } else if(IsKeyDown(KEY_D)) {
-          if(last_was_left) {
+          // if(last_was_left) {
             // player_velocity.x *= friction;
             // player_velocity.x += speed * turn_speed_multiplier * dt;
-          }
+          // }
           player_velocity.x += speed * dt;
-          last_was_left = false;
+          // last_was_left = false;
         // } else {
           // if(player_velocity.y < 0.5) {
           //   // log("y is zero");
@@ -364,30 +368,43 @@ s32 main() {
         player_velocity.x = Clamp(player_velocity.x, percent_speed * -speed, percent_speed * speed);
 
         if(IsKeyPressed(KEY_SPACE)) {
-          f32 scaled_tile_size = TILE_SIZE * level_tile_scale;
+          if(has_coyote_time && coyote_time > 0) {
+            /// @todo: Duplicated code!!!
+            player_velocity.y = jump_velocity;
+            player_position.y += player_velocity.y * dt;
+            is_player_grounded = false;
+            coyote_time = 0;
+            has_coyote_time = false;
+            // player_jumped = true;
+          } else {
 
-          for(u32 index = 0; index < total_blocks; index++) {
-            /// @todo: Copy-Pasta from editor rendering.
-            PhysicsBlock b = blocks[index];
-            if(FloatEquals(b.top_left.x, -1)) continue;
-            f32 far_x = b.bottom_right.x - b.top_left.x + 1;
-            f32 far_y = b.bottom_right.y - b.top_left.y + 1;
-            u32 thickness = 3;
-            /// @todo: This could be on the struct itself. It only calculates this on creation.
-            Rectangle ground = {
-              b.top_left.x * TILE_SIZE * level_tile_scale,
-              b.top_left.y * TILE_SIZE * level_tile_scale,
-              far_x * TILE_SIZE * level_tile_scale,
-              far_y * TILE_SIZE * level_tile_scale
-            };
 
-            bool hit_ground = CheckCollisionRecs({player_position.x,player_position.y,scaled_tile_size,scaled_tile_size}, ground);
+            f32 scaled_tile_size = TILE_SIZE * level_tile_scale;
 
-            if(hit_ground) {
-              player_velocity.y = jump_velocity;
-              /// @todo: Super hacky!!!! Duplicated code!!!
-              player_position.y += player_velocity.y * dt;
-              is_player_grounded = false;
+            for(u32 index = 0; index < total_blocks; index++) {
+              /// @todo: Copy-Pasta from editor rendering.
+              PhysicsBlock b = blocks[index];
+              if(FloatEquals(b.top_left.x, -1)) continue;
+              f32 far_x = b.bottom_right.x - b.top_left.x + 1;
+              f32 far_y = b.bottom_right.y - b.top_left.y + 1;
+              u32 thickness = 3;
+              /// @todo: This could be on the struct itself. It only calculates this on creation.
+              Rectangle ground = {
+                b.top_left.x * TILE_SIZE * level_tile_scale,
+                b.top_left.y * TILE_SIZE * level_tile_scale,
+                far_x * TILE_SIZE * level_tile_scale,
+                far_y * TILE_SIZE * level_tile_scale
+              };
+
+              bool hit_ground = CheckCollisionRecs({player_position.x,player_position.y,scaled_tile_size,scaled_tile_size}, ground);
+
+              if(hit_ground) {
+                player_velocity.y = jump_velocity;
+                /// @todo: Super hacky!!!! Duplicated code!!!
+                player_position.y += player_velocity.y * dt;
+                is_player_grounded = false;
+                player_jumped = true;
+              }
             }
           }
 
@@ -701,8 +718,9 @@ s32 main() {
           if(is_moving_down) {
             player_position.y = ground.y - scaled_tile_size;
             is_player_grounded = true;
+            has_coyote_time = true;
           }
-          else if(is_moving_up) player_position.y = ground.y + ground.width;
+          else if(is_moving_up) player_position.y = ground.y + ground.height;
           player_velocity.y = 0;
         }
 
@@ -728,7 +746,15 @@ s32 main() {
       // player_velocity.x = Clamp(player_velocity.x, 0, 1000);
       player_position += player_velocity * (dt / total_steps);
       physics_step++;
-      if(physics_step < total_steps) goto physics_loop; 
+      if(physics_step < total_steps) goto physics_loop;
+
+      if(has_coyote_time) {
+        coyote_time = 0.5;
+      }
+      // else coyote_time = 0;
+
+      if(coyote_time > 0) coyote_time -= dt;
+      else coyote_time = 0;
     }
 
     /// @note: Draw();
