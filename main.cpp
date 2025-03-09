@@ -284,11 +284,14 @@ s32 main() {
   bool is_player_grounded = false;
   bool player_jumped = false;
 
-  // bool last_was_left = false;
-  // u32 turn_speed_multiplier = 50;
-
   f32 coyote_time = 0;
   bool has_coyote_time = false;
+
+  f32 jump_buffer_time = 0;
+  bool jump_buffer = false;
+
+  u64 number_of_frames_that_jump_button_is_being_held = 0;
+  bool is_variable_height = false;
 
   while(!WindowShouldClose()) {
     f32 dt = GetFrameTime();
@@ -336,32 +339,9 @@ s32 main() {
     switch(engine_state) {
       case EngineState::IN_GAME: {
         if(IsKeyDown(KEY_A)) {
-          // player_input.is_pressing_left = true;
-          // if(!last_was_left) {
-            // player_velocity.x *= friction;
-            // player_velocity.x -= speed * turn_speed_multiplier * dt;
-          // }
           player_velocity.x -= speed * dt;
-          // last_was_left = true;
         } else if(IsKeyDown(KEY_D)) {
-          // if(last_was_left) {
-            // player_velocity.x *= friction;
-            // player_velocity.x += speed * turn_speed_multiplier * dt;
-          // }
           player_velocity.x += speed * dt;
-          // last_was_left = false;
-        // } else {
-          // if(player_velocity.y < 0.5) {
-          //   // log("y is zero");
-          //   // log("Vel Y", player_velocity.y);
-          //   player_velocity.x *= friction;
-          //   if(player_velocity.x < 0) player_velocity.x = 0;
-          //   else player_velocity.x -= friction * dt;
-          // } else {
-          //   log("air friction");
-          //   log("Vel Y", player_velocity.y);
-          //   player_velocity.x *= air_friction;
-          // }
         }
 
         f32 percent_speed = 0.9;
@@ -377,8 +357,6 @@ s32 main() {
             has_coyote_time = false;
             // player_jumped = true;
           } else {
-
-
             f32 scaled_tile_size = TILE_SIZE * level_tile_scale;
 
             for(u32 index = 0; index < total_blocks; index++) {
@@ -399,20 +377,53 @@ s32 main() {
               bool hit_ground = CheckCollisionRecs({player_position.x,player_position.y,scaled_tile_size,scaled_tile_size}, ground);
 
               if(hit_ground) {
-                player_velocity.y = jump_velocity;
                 /// @todo: Super hacky!!!! Duplicated code!!!
+                player_velocity.y = jump_velocity;
                 player_position.y += player_velocity.y * dt;
                 is_player_grounded = false;
                 player_jumped = true;
+              } else {
+                /// @note: Jump buffer logic
+                f32 bottom_y = player_position.y + scaled_tile_size;
+                if(ground.y > bottom_y && (ground.y - bottom_y) < (scaled_tile_size / 3)) {
+                  /// @todo: Super hacky!!!! Duplicated code!!!
+                  player_velocity.y = jump_velocity;
+                  player_position.y += player_velocity.y * dt;
+                  is_player_grounded = false;
+                  player_jumped = true;
+                }
               }
             }
           }
+        }
 
-          // if(CheckCollisionRecs({player_position.x,player_position.y,scaled_tile_size,scaled_tile_size}, {0,screen_height-scaled_tile_size*2, screen_width, scaled_tile_size*2})) {
-          //   player_velocity.y = jump_velocity;
-          //   /// @todo: super hacky!!!! duplicate code
-          //   player_position.y += player_velocity.y * dt;
-          // }
+        if(IsKeyDown(KEY_SPACE)) {
+          u8 fps = 1 / dt;
+
+          if(number_of_frames_that_jump_button_is_being_held == (fps / 3)) {
+            log("enable variable height");
+            is_variable_height = true;
+            log("not grounded", !is_player_grounded);
+            log("player jumped", player_jumped);
+            log("frames held is less than fps", number_of_frames_that_jump_button_is_being_held < (fps * 1));
+          }
+
+          if(!is_player_grounded
+          // && player_jumped
+          && is_variable_height
+          && number_of_frames_that_jump_button_is_being_held < (fps * 1)) {
+            /// @todo: Super hacky!!!! Duplicated code!!!
+            log("Variable height", fps);
+            player_velocity.y += jump_velocity * 1.8 * dt;
+            player_position.y += player_velocity.y * dt;
+          } else {
+            is_variable_height = false;
+          }
+          number_of_frames_that_jump_button_is_being_held++;
+        } else {
+          number_of_frames_that_jump_button_is_being_held = 0;
+          is_variable_height = false;
+          log("disabling variable height");
         }
 
         /// @todo: This code should be removed on release.
@@ -755,6 +766,9 @@ s32 main() {
 
       if(coyote_time > 0) coyote_time -= dt;
       else coyote_time = 0;
+
+      // if(jump_buffer_time > 0) jump_buffer_time -= dt;
+      // else jump_buffer_time = 0;
     }
 
     /// @note: Draw();
