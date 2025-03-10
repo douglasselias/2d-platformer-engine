@@ -819,9 +819,14 @@ s32 main() {
                   TILE_SIZE * level_tile_scale, TILE_SIZE * level_tile_scale
                 }, {0,0}, 0, WHITE);
             }
-            DrawLineV({0, (f32)TILE_SIZE * level_tile_scale * row}, {(f32)screen_width * level_tile_scale, (f32)TILE_SIZE * level_tile_scale * row}, WHITE);
+            // u64 remainder = (screen_height / (s32)TILE_SIZE) / 2;
+            u64 remainder = 0;
+            DrawLineV({0, (f32)TILE_SIZE * level_tile_scale * row + remainder}, {(f32)screen_width * level_tile_scale, (f32)TILE_SIZE * level_tile_scale * row + remainder}, WHITE);
           }
-          DrawLineV({(f32)TILE_SIZE * level_tile_scale * col, 0}, {(f32)TILE_SIZE * level_tile_scale * col, (f32)screen_height * level_tile_scale}, WHITE);
+          // u64 remainder = (screen_width / (s32)TILE_SIZE) / 2;
+          u64 remainder = 0;
+          // log("Remainder", remainder);
+          DrawLineV({(f32)TILE_SIZE * level_tile_scale * col + remainder, 0}, {(f32)TILE_SIZE * level_tile_scale * col + remainder, (f32)screen_height * level_tile_scale}, WHITE);
         }
 
         for(u32 index = 0; index < total_blocks; index++) {
@@ -855,9 +860,11 @@ s32 main() {
                 // DrawTextEx(font, TextFormat("{%f, %f}", target_position.x, target_position.y), {0,0}, font_size, spacing, MAGENTA);
                 // DrawTextEx(font, TextFormat("{%f, %f}", player_velocity.x, player_velocity.y), {0,(f32)font_size}, font_size, spacing, MAGENTA);
               // }
+              // u64 remainder = screen_width % (s32)TILE_SIZE;
+              u64 remainder = 0;
               DrawTexturePro(tilemap, 
                 {
-                  (f32)tile_position.x * TILE_SIZE,
+                  (f32)tile_position.x * TILE_SIZE + remainder,
                   (f32)tile_position.y * TILE_SIZE,
                   TILE_SIZE, TILE_SIZE
                 }, 
