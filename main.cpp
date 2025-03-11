@@ -318,6 +318,11 @@ s32 main() {
     }
 
     if(IsKeyPressed(KEY_FOUR)) {
+      engine_state = EngineState::LEVEL_EDITOR;
+      engine_substate = EngineSubState::PLAYER_PLACEMENT;
+    }
+
+    if(IsKeyPressed(KEY_FIVE)) {
       engine_state = EngineState::IN_GAME;
     }
 
@@ -335,6 +340,7 @@ s32 main() {
     f32 fall_gravity  = -1 * ((-2 * jump_height) / (jump_time_to_descent * jump_time_to_descent));
 
     const char* physics_level_path = "../physics.txt";
+    const char* player_file_path   = "../player.txt";
 
     switch(engine_state) {
       case EngineState::IN_GAME: {
@@ -605,6 +611,28 @@ s32 main() {
               }
             }
           } break;
+
+          case EngineSubState::PLAYER_PLACEMENT: {
+            if(IsMouseButtonDown(0)) {
+              // Vector2 p = {floorf(mouse_position.x), floorf(mouse_position.y)};
+              Vector2 level_position = (mouse_position + camera2D.target) / (1);
+              player_position = level_position;
+            }
+
+            if(IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) {
+              FILE* file = fopen(player_file_path, "w");
+              fprintf(file, "%f %f\n", player_position.x, player_position.y);
+              fclose(file);
+              log("Player position saved");
+            }
+
+            if(IsKeyPressed(KEY_Q)) {
+              FILE* file = fopen(player_file_path, "r");
+              fscanf(file, "%f", &(player_position.x));
+              fscanf(file, "%f", &(player_position.y));
+              fclose(file);
+            }
+          } break;
         /// @note: End of engine_substate switch case.
         }
       } break;
@@ -841,6 +869,13 @@ s32 main() {
             far_y * TILE_SIZE * level_tile_scale
           }, thickness, GOLD);
         }
+
+        // DrawRectangleRec();
+        f32 scaled_tile_size = TILE_SIZE * level_tile_scale;
+        Rectangle p = {player_position.x,player_position.y,scaled_tile_size,scaled_tile_size};
+        // Rectangle ground = {0,screen_height-scaled_tile_size*2, screen_width, scaled_tile_size*2};
+        // u32 thickness = 3;
+        DrawRectangleLinesEx(p, 3, MAGENTA);
       } break;
 
       case EngineState::IN_GAME: {
