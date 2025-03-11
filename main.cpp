@@ -98,6 +98,30 @@ void draw_texture(Texture2D texture, Vector2 position, f32 scale = 1, Color tint
   DrawTexturePro(texture, source, dest, origin, rotation, tint);
 }
 
+const char* level_file_path    = "../level.txt";
+const char* physics_level_path = "../physics.txt";
+const char* player_file_path   = "../player.txt";
+
+void load_level();
+void load_physics_blocks();
+void load_player_position();
+
+const u8 level_tile_scale = 3;
+const f32 TILE_SIZE = 16;
+const u32 level_width  = screen_width  / (TILE_SIZE * level_tile_scale);
+const u32 level_height = screen_height / (TILE_SIZE * level_tile_scale);
+Vector2 level[level_height][level_width] = {};
+
+struct PhysicsBlock {
+  Vector2 top_left;
+  Vector2 bottom_right;
+};
+
+const u32 total_blocks = 50;
+PhysicsBlock blocks[total_blocks] = {};
+
+Vector2 player_position = {};
+
 s32 main() {
   init_screen();
   init_i18n();
@@ -177,15 +201,10 @@ s32 main() {
 
   f32 tilemap_scale = 2;
 
-  const f32 TILE_SIZE = 16;
   Vector2 selected_tile = {};
   f32 selected_tile_alpha = 1;
   Rectangle selected_tile_rect = {(f32)screen_width - 110, 10, 100, 100};
 
-  const u8 level_tile_scale = 3;
-  const u32 level_width  = screen_width  / (TILE_SIZE * level_tile_scale);
-  const u32 level_height = screen_height / (TILE_SIZE * level_tile_scale);
-  Vector2 level[level_height][level_width] = {};
   for(u32 col = 0; col < level_height; col++) {
     for(u32 row = 0; row < level_width; row++) {
       level[col][row] = {-1, -1};
@@ -241,7 +260,6 @@ s32 main() {
   Vector2 end_position = {};
   bool started_dragging = false;
 
-  Vector2 player_position = {};
   Vector2 player_velocity = {};
   f32 move_speed = 200;
 
@@ -252,13 +270,6 @@ s32 main() {
   bool showMessageBox = false;
   f32 cooldown_timer = 0;
 
-  struct PhysicsBlock {
-    Vector2 top_left;
-    Vector2 bottom_right;
-  };
-
-  const u32 total_blocks = 50;
-  PhysicsBlock blocks[total_blocks] = {};
   for(u32 i = 0; i < total_blocks; i++) {
     blocks[i].top_left     = {-1, -1};
     blocks[i].bottom_right = {-1, -1};
@@ -293,14 +304,17 @@ s32 main() {
   u64 number_of_frames_that_jump_button_is_being_held = 0;
   bool is_variable_height = false;
 
+  u8 player_walk_animation_index = 1;
+  u64 frame_counter = 0;
+
+  bool is_player_facing_right = true;
+
   while(!WindowShouldClose()) {
     f32 dt = GetFrameTime();
     Vector2 mouse_position = GetMousePosition();
     /// @todo: Maybe create a struct to have all input states.
     bool mouse_down = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
     UpdateMusicStream(music);
-
-    const char* level_file_path = "../level.txt";
 
     if(IsKeyPressed(KEY_ONE)) {
       engine_state = EngineState::TILE_SELECTION;
@@ -326,6 +340,14 @@ s32 main() {
       engine_state = EngineState::IN_GAME;
     }
 
+    if(IsKeyPressed(KEY_Z)) {
+      load_level();
+      load_physics_blocks();
+      load_player_position();
+      engine_state = EngineState::IN_GAME;
+    }
+    // log("Vel.X", player_velocity.x);
+
     if(IsKeyPressed(KEY_C)) {
       /// @todo: Cycle trough the available languages.
       dictionary_index = dictionary_index == EN ? CN : EN;
@@ -338,9 +360,6 @@ s32 main() {
     f32 jump_velocity = -1 * (( 2 * jump_height) / jump_time_to_peak);
     f32 jump_gravity  = -1 * ((-2 * jump_height) / (jump_time_to_peak * jump_time_to_peak));
     f32 fall_gravity  = -1 * ((-2 * jump_height) / (jump_time_to_descent * jump_time_to_descent));
-
-    const char* physics_level_path = "../physics.txt";
-    const char* player_file_path   = "../player.txt";
 
     switch(engine_state) {
       case EngineState::IN_GAME: {
@@ -515,24 +534,7 @@ s32 main() {
             }
 
             if(IsKeyPressed(KEY_Q)) {
-              FILE* file = fopen(level_file_path, "r");
-
-              for(u32 col = 0; col < level_height; col++) {
-                for(u32 row = 0; row < level_width; row++) {
-                  f32 x, y;
-                  fscanf(file, "%f", &x);
-                  fscanf(file, "%f", &y);
-                  level[col][row] = {x, y};
-
-                  // /// @todo: hack: getting player position
-                  // if((u32)x == 0 && (u32)y == 12) {
-                  //   player_position = {x, y};
-                  //   log("Found player");
-                  // }
-                }
-              }
-
-              fclose(file);
+              load_level();
             }
           } break;
 
@@ -551,19 +553,7 @@ s32 main() {
             }
 
             if(IsKeyDown(KEY_Q)) {
-              FILE* file = fopen(physics_level_path, "r");
-              for(u32 index = 0; index < total_blocks; index++) {
-                f32 x, y;
-                fscanf(file, "%f", &x);
-                fscanf(file, "%f", &y);
-                blocks[index].top_left.x = x;
-                blocks[index].top_left.y = y;
-
-                fscanf(file, "%f", &x);
-                fscanf(file, "%f", &y);
-                blocks[index].bottom_right.x = x;
-                blocks[index].bottom_right.y = y;
-              }
+              load_physics_blocks();
             }
 
             if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
@@ -627,10 +617,7 @@ s32 main() {
             }
 
             if(IsKeyPressed(KEY_Q)) {
-              FILE* file = fopen(player_file_path, "r");
-              fscanf(file, "%f", &(player_position.x));
-              fscanf(file, "%f", &(player_position.y));
-              fclose(file);
+              load_player_position();
             }
           } break;
         /// @note: End of engine_substate switch case.
@@ -930,9 +917,54 @@ s32 main() {
       case EngineState::IN_GAME: {
         f32 scaled_tile_size = TILE_SIZE * level_tile_scale;
         Rectangle p = {player_position.x,player_position.y,scaled_tile_size,scaled_tile_size};
-        // Rectangle ground = {0,screen_height-scaled_tile_size*2, screen_width, scaled_tile_size*2};
-        // u32 thickness = 3;
-        DrawRectangleLinesEx(p, 3, MAGENTA);
+
+        u32 _thickness = 3;
+        // DrawRectangleLinesEx(p, _thickness, MAGENTA);
+
+        Rectangle player_rect = { (f32)1  * TILE_SIZE, (f32)12 * TILE_SIZE, TILE_SIZE, TILE_SIZE };
+        Rectangle dst_rect = { p.x, p.y, TILE_SIZE * level_tile_scale, TILE_SIZE * level_tile_scale};
+        Vector2 origin = {0, 0};
+        f32 rotation = 0;
+        Color color = WHITE;
+        f32 fps = 1 / dt;
+
+        f32 vel_threshold = 0.5;
+        f32 has_left_velocity  = player_velocity.x < -vel_threshold;
+        f32 has_right_velocity = player_velocity.x > vel_threshold;
+
+        bool is_pressing_left  = IsKeyDown(KEY_A);
+        bool is_pressing_right = IsKeyDown(KEY_D);
+
+        if(is_pressing_left) {
+          Rectangle anim_rect = {(f32)player_walk_animation_index * TILE_SIZE, player_rect.y, -player_rect.width, player_rect.height};
+          DrawTexturePro(tilemap, anim_rect, dst_rect, origin, rotation, color);
+          is_player_facing_right = false;
+        } else if(is_pressing_right) {
+          Rectangle anim_rect = {(f32)player_walk_animation_index * TILE_SIZE, player_rect.y, player_rect.width, player_rect.height};
+          DrawTexturePro(tilemap, anim_rect, dst_rect, origin, rotation, color);
+          is_player_facing_right = true;
+        } else {
+          if(has_left_velocity) {
+            Rectangle anim_rect = {(f32)player_walk_animation_index * TILE_SIZE, player_rect.y, -player_rect.width, player_rect.height};
+            DrawTexturePro(tilemap, anim_rect, dst_rect, origin, rotation, color);
+          } else if(has_right_velocity) {
+            Rectangle anim_rect = {(f32)player_walk_animation_index * TILE_SIZE, player_rect.y, player_rect.width, player_rect.height};
+            DrawTexturePro(tilemap, anim_rect, dst_rect, origin, rotation, color);
+          } else {
+            Rectangle anim_rect = {
+              (f32)1 * TILE_SIZE, player_rect.y,
+              (is_player_facing_right ? 1 : -1) * player_rect.width, player_rect.height
+            };
+            DrawTexturePro(tilemap, anim_rect, dst_rect, origin, rotation, color);
+            // DrawTexturePro(tilemap, player_rect, dst_rect, origin, rotation, color);
+          }
+        }
+
+        if(frame_counter % (s32)(fps * 0.2) == 0) {
+          player_walk_animation_index = Wrap(player_walk_animation_index++, 1, 3);
+        }
+        frame_counter = Wrap(frame_counter++, 0, fps);
+
         // DrawRectangleLinesEx(ground, 3, GOLD);
 
         for(u32 index = 0; index < total_blocks; index++) {
@@ -952,15 +984,15 @@ s32 main() {
         Rectangle slider = {10, 10, 1000, 20};
         u32 slider_count = 3;
         u32 gap = 10;
-        DrawRectangleRec({0, 0, screen_width, (slider.height * slider_count) + (gap * (slider_count + 1))}, GRAY);
+        // DrawRectangleRec({0, 0, screen_width, (slider.height * slider_count) + (gap * (slider_count + 1))}, GRAY);
 
-        GuiSlider(slider, NULL, TextFormat("jump_height: %.2fs", jump_height), &jump_height, 1, 1000);
-
-        slider.y += slider.height + gap;
-        GuiSlider(slider, NULL, TextFormat("jump_time_to_peak: %.2fs", jump_time_to_peak), &jump_time_to_peak, 0, 1);
+        // GuiSlider(slider, NULL, TextFormat("jump_height: %.2fs", jump_height), &jump_height, 1, 1000);
 
         slider.y += slider.height + gap;
-        GuiSlider(slider, NULL, TextFormat("jump_time_to_descent: %.2fs", jump_time_to_descent), &jump_time_to_descent, 0, 1);
+        // GuiSlider(slider, NULL, TextFormat("jump_time_to_peak: %.2fs", jump_time_to_peak), &jump_time_to_peak, 0, 1);
+
+        slider.y += slider.height + gap;
+        // GuiSlider(slider, NULL, TextFormat("jump_time_to_descent: %.2fs", jump_time_to_descent), &jump_time_to_descent, 0, 1);
 
         // slider.y += slider.height + gap;
         // slider.width = 200;
@@ -971,65 +1003,65 @@ s32 main() {
     u32 font_size = 70;
     u8 spacing = 0;
 
-    f32 x_space = 0;
-    f32 x_gap = 10;
-    f32 x_gap_index = 1;
+    // f32 x_space = 0;
+    // f32 x_gap = 10;
+    // f32 x_gap_index = 1;
 
-    if(engine_state != EngineState::TILE_SELECTION) {
-      u32 _font_size = 24;
-      f32 y_pad = 10;
-      char* key_one_text = "Press Key '1' to go to tile selection";
-      Vector2 text_size = MeasureTextEx(font, key_one_text, _font_size, spacing);
-      Vector2 pos = {x_gap * x_gap_index + x_space, y_pad};
-      DrawRectangleRec({pos.x, pos.y, text_size.x, text_size.y }, TW_STONE[5]);
-      // DrawTextEx(font, key_one_text, pos + 3, _font_size, spacing, BLACK);
-      DrawTextEx(font, key_one_text, pos, _font_size, spacing, WHITE);
+    // if(engine_state != EngineState::TILE_SELECTION) {
+    //   u32 _font_size = 24;
+    //   f32 y_pad = 10;
+    //   char* key_one_text = "Press Key '1' to go to tile selection";
+    //   Vector2 text_size = MeasureTextEx(font, key_one_text, _font_size, spacing);
+    //   Vector2 pos = {x_gap * x_gap_index + x_space, y_pad};
+    //   DrawRectangleRec({pos.x, pos.y, text_size.x, text_size.y }, TW_STONE[5]);
+    //   // DrawTextEx(font, key_one_text, pos + 3, _font_size, spacing, BLACK);
+    //   DrawTextEx(font, key_one_text, pos, _font_size, spacing, WHITE);
 
-      x_space += text_size.x;
-      x_gap_index++;
-    }
+    //   x_space += text_size.x;
+    //   x_gap_index++;
+    // }
 
-    if(engine_substate != EngineSubState::TILE_PLACEMENT) {
-      u32 _font_size = 24;
-      f32 y_pad = 10;
-      char* key_one_text = "Press Key '2' to go to level editor";
-      Vector2 text_size = MeasureTextEx(font, key_one_text, _font_size, spacing);
-      Vector2 pos = {x_gap * x_gap_index + x_space, y_pad};
-      DrawRectangleRec({pos.x, pos.y, text_size.x, text_size.y }, TW_STONE[5]);
-      // DrawTextEx(font, key_one_text, pos + 3, _font_size, spacing, BLACK);
-      DrawTextEx(font, key_one_text, pos, _font_size, spacing, WHITE);
+    // if(engine_substate != EngineSubState::TILE_PLACEMENT) {
+    //   u32 _font_size = 24;
+    //   f32 y_pad = 10;
+    //   char* key_one_text = "Press Key '2' to go to level editor";
+    //   Vector2 text_size = MeasureTextEx(font, key_one_text, _font_size, spacing);
+    //   Vector2 pos = {x_gap * x_gap_index + x_space, y_pad};
+    //   DrawRectangleRec({pos.x, pos.y, text_size.x, text_size.y }, TW_STONE[5]);
+    //   // DrawTextEx(font, key_one_text, pos + 3, _font_size, spacing, BLACK);
+    //   DrawTextEx(font, key_one_text, pos, _font_size, spacing, WHITE);
 
-      x_space += text_size.x;
-      x_gap_index++;
-    }
+    //   x_space += text_size.x;
+    //   x_gap_index++;
+    // }
 
-    if(engine_substate != EngineSubState::PHYSICS_PLACEMENT) {
-      u32 _font_size = 24;
-      f32 y_pad = 10;
-      char* key_one_text = "Press Key '3' to go to physics editor";
-      Vector2 text_size = MeasureTextEx(font, key_one_text, _font_size, spacing);
-      Vector2 pos = {x_gap * x_gap_index + x_space, y_pad};
-      DrawRectangleRec({pos.x, pos.y, text_size.x, text_size.y }, TW_STONE[5]);
-      // DrawTextEx(font, key_one_text, pos + 3, _font_size, spacing, BLACK);
-      DrawTextEx(font, key_one_text, pos, _font_size, spacing, WHITE);
+    // if(engine_substate != EngineSubState::PHYSICS_PLACEMENT) {
+    //   u32 _font_size = 24;
+    //   f32 y_pad = 10;
+    //   char* key_one_text = "Press Key '3' to go to physics editor";
+    //   Vector2 text_size = MeasureTextEx(font, key_one_text, _font_size, spacing);
+    //   Vector2 pos = {x_gap * x_gap_index + x_space, y_pad};
+    //   DrawRectangleRec({pos.x, pos.y, text_size.x, text_size.y }, TW_STONE[5]);
+    //   // DrawTextEx(font, key_one_text, pos + 3, _font_size, spacing, BLACK);
+    //   DrawTextEx(font, key_one_text, pos, _font_size, spacing, WHITE);
 
-      x_space += text_size.x;
-      x_gap_index++;
-    }
+    //   x_space += text_size.x;
+    //   x_gap_index++;
+    // }
 
-    if(engine_state != EngineState::IN_GAME) {
-      u32 _font_size = 24;
-      f32 y_pad = 10;
-      char* key_one_text = "Press Key '4' to test the game";
-      Vector2 text_size = MeasureTextEx(font, key_one_text, _font_size, spacing);
-      Vector2 pos = {x_gap * x_gap_index + x_space, y_pad};
-      DrawRectangleRec({pos.x, pos.y, text_size.x, text_size.y }, TW_STONE[5]);
-      // DrawTextEx(font, key_one_text, pos + 3, _font_size, spacing, BLACK);
-      DrawTextEx(font, key_one_text, pos, _font_size, spacing, WHITE);
+    // if(engine_state != EngineState::IN_GAME) {
+    //   u32 _font_size = 24;
+    //   f32 y_pad = 10;
+    //   char* key_one_text = "Press Key '4' to test the game";
+    //   Vector2 text_size = MeasureTextEx(font, key_one_text, _font_size, spacing);
+    //   Vector2 pos = {x_gap * x_gap_index + x_space, y_pad};
+    //   DrawRectangleRec({pos.x, pos.y, text_size.x, text_size.y }, TW_STONE[5]);
+    //   // DrawTextEx(font, key_one_text, pos + 3, _font_size, spacing, BLACK);
+    //   DrawTextEx(font, key_one_text, pos, _font_size, spacing, WHITE);
 
-      x_space += text_size.x;
-      x_gap_index++;
-    }
+    //   x_space += text_size.x;
+    //   x_gap_index++;
+    // }
     // {
     //   char* hello_world_text = i18n(dictionary_index, "hello_world");
     //   Vector2 pos = {screen_center.x - MeasureTextEx(font, hello_world_text, font_size, spacing).x / 2, screen_center.y - font_size};
@@ -1063,4 +1095,42 @@ s32 main() {
 
   CloseWindow();
   return 0;
+}
+
+void load_level() {
+  FILE* file = fopen(level_file_path, "r");
+
+  for(u32 col = 0; col < level_height; col++) {
+    for(u32 row = 0; row < level_width; row++) {
+      f32 x, y;
+      fscanf(file, "%f", &x);
+      fscanf(file, "%f", &y);
+      level[col][row] = {x, y};
+    }
+  }
+
+  fclose(file);
+}
+
+void load_physics_blocks() {
+  FILE* file = fopen(physics_level_path, "r");
+  for(u32 index = 0; index < total_blocks; index++) {
+    f32 x, y;
+    fscanf(file, "%f", &x);
+    fscanf(file, "%f", &y);
+    blocks[index].top_left.x = x;
+    blocks[index].top_left.y = y;
+
+    fscanf(file, "%f", &x);
+    fscanf(file, "%f", &y);
+    blocks[index].bottom_right.x = x;
+    blocks[index].bottom_right.y = y;
+  }
+}
+
+void load_player_position() {
+  FILE* file = fopen(player_file_path, "r");
+  fscanf(file, "%f", &(player_position.x));
+  fscanf(file, "%f", &(player_position.y));
+  fclose(file);
 }

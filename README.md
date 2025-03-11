@@ -1,10 +1,11 @@
 # raylib-template
 
+- Player animation
 - Full world level editor
 - Camera follow the player (camera trap)
-- Player animation
 - Collectables and animations
 - Enemies and animations
+- Game Over condition and animation?
 - Background parallax and animations
 - Pause menu
 - I18n
