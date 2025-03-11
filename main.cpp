@@ -115,11 +115,11 @@ s32 main() {
     /// @note: LEVEL_EDITOR SubState
     TILE_PLACEMENT,
     PHYSICS_PLACEMENT,
-    /// @note: ...
+    PLAYER_PLACEMENT,
   };
 
   EngineState engine_state = EngineState::LEVEL_EDITOR;
-  EngineSubState engine_substate = EngineSubState::TILE_PLACEMENT;
+  EngineSubState engine_substate = EngineSubState::PHYSICS_PLACEMENT;
   Languages dictionary_index = CN;
 
   #if DEV == 1

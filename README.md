@@ -1,7 +1,5 @@
 # raylib-template
 
-- Label for available commands
-- Save physics blocks in a file
 - Full world level editor
 - Camera follow the player (camera trap)
 - Player animation
