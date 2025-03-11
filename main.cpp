@@ -401,11 +401,11 @@ s32 main() {
           u8 fps = 1 / dt;
 
           if(number_of_frames_that_jump_button_is_being_held == (fps / 3)) {
-            log("enable variable height");
+            // log("enable variable height");
             is_variable_height = true;
-            log("not grounded", !is_player_grounded);
-            log("player jumped", player_jumped);
-            log("frames held is less than fps", number_of_frames_that_jump_button_is_being_held < (fps * 1));
+            // log("not grounded", !is_player_grounded);
+            // log("player jumped", player_jumped);
+            // log("frames held is less than fps", number_of_frames_that_jump_button_is_being_held < (fps * 1));
           }
 
           if(!is_player_grounded
@@ -413,7 +413,7 @@ s32 main() {
           && is_variable_height
           && number_of_frames_that_jump_button_is_being_held < (fps * 1)) {
             /// @todo: Super hacky!!!! Duplicated code!!!
-            log("Variable height", fps);
+            // log("Variable height", fps);
             player_velocity.y += jump_velocity * 1.8 * dt;
             player_position.y += player_velocity.y * dt;
           } else {
@@ -423,7 +423,7 @@ s32 main() {
         } else {
           number_of_frames_that_jump_button_is_being_held = 0;
           is_variable_height = false;
-          log("disabling variable height");
+          // log("disabling variable height");
         }
 
         /// @todo: This code should be removed on release.
@@ -518,11 +518,11 @@ s32 main() {
                   fscanf(file, "%f", &y);
                   level[col][row] = {x, y};
 
-                  /// @todo: hack: getting player position
-                  if((u32)x == 0 && (u32)y == 12) {
-                    player_position = {x, y};
-                    log("Found player");
-                  }
+                  // /// @todo: hack: getting player position
+                  // if((u32)x == 0 && (u32)y == 12) {
+                  //   player_position = {x, y};
+                  //   log("Found player");
+                  // }
                 }
               }
 
@@ -932,10 +932,69 @@ s32 main() {
         // GuiSlider(slider, NULL, TextFormat("friction: %.2fs", friction), &friction, 0, 2);
       } break;
     }
-    
+
     u32 font_size = 70;
     u8 spacing = 0;
 
+    f32 x_space = 0;
+    f32 x_gap = 10;
+    f32 x_gap_index = 1;
+
+    if(engine_state != EngineState::TILE_SELECTION) {
+      u32 _font_size = 24;
+      f32 y_pad = 10;
+      char* key_one_text = "Press Key '1' to go to tile selection";
+      Vector2 text_size = MeasureTextEx(font, key_one_text, _font_size, spacing);
+      Vector2 pos = {x_gap * x_gap_index + x_space, y_pad};
+      DrawRectangleRec({pos.x, pos.y, text_size.x, text_size.y }, TW_STONE[5]);
+      // DrawTextEx(font, key_one_text, pos + 3, _font_size, spacing, BLACK);
+      DrawTextEx(font, key_one_text, pos, _font_size, spacing, WHITE);
+
+      x_space += text_size.x;
+      x_gap_index++;
+    }
+
+    if(engine_substate != EngineSubState::TILE_PLACEMENT) {
+      u32 _font_size = 24;
+      f32 y_pad = 10;
+      char* key_one_text = "Press Key '2' to go to level editor";
+      Vector2 text_size = MeasureTextEx(font, key_one_text, _font_size, spacing);
+      Vector2 pos = {x_gap * x_gap_index + x_space, y_pad};
+      DrawRectangleRec({pos.x, pos.y, text_size.x, text_size.y }, TW_STONE[5]);
+      // DrawTextEx(font, key_one_text, pos + 3, _font_size, spacing, BLACK);
+      DrawTextEx(font, key_one_text, pos, _font_size, spacing, WHITE);
+
+      x_space += text_size.x;
+      x_gap_index++;
+    }
+
+    if(engine_substate != EngineSubState::PHYSICS_PLACEMENT) {
+      u32 _font_size = 24;
+      f32 y_pad = 10;
+      char* key_one_text = "Press Key '3' to go to physics editor";
+      Vector2 text_size = MeasureTextEx(font, key_one_text, _font_size, spacing);
+      Vector2 pos = {x_gap * x_gap_index + x_space, y_pad};
+      DrawRectangleRec({pos.x, pos.y, text_size.x, text_size.y }, TW_STONE[5]);
+      // DrawTextEx(font, key_one_text, pos + 3, _font_size, spacing, BLACK);
+      DrawTextEx(font, key_one_text, pos, _font_size, spacing, WHITE);
+
+      x_space += text_size.x;
+      x_gap_index++;
+    }
+
+    if(engine_state != EngineState::IN_GAME) {
+      u32 _font_size = 24;
+      f32 y_pad = 10;
+      char* key_one_text = "Press Key '4' to test the game";
+      Vector2 text_size = MeasureTextEx(font, key_one_text, _font_size, spacing);
+      Vector2 pos = {x_gap * x_gap_index + x_space, y_pad};
+      DrawRectangleRec({pos.x, pos.y, text_size.x, text_size.y }, TW_STONE[5]);
+      // DrawTextEx(font, key_one_text, pos + 3, _font_size, spacing, BLACK);
+      DrawTextEx(font, key_one_text, pos, _font_size, spacing, WHITE);
+
+      x_space += text_size.x;
+      x_gap_index++;
+    }
     // {
     //   char* hello_world_text = i18n(dictionary_index, "hello_world");
     //   Vector2 pos = {screen_center.x - MeasureTextEx(font, hello_world_text, font_size, spacing).x / 2, screen_center.y - font_size};
