@@ -122,11 +122,21 @@ PhysicsBlock blocks[total_blocks] = {};
 
 Vector2 player_position = {};
 
+Camera2D player_camera = {};
+Camera2D camera2D = {};
+
+Camera2D current_camera;
+
 s32 main() {
   init_screen();
   init_i18n();
 
   GuiLoadStyle("../vendor/style_dark.rgs");
+
+  player_camera.zoom = 1;
+  camera2D.zoom = 1;
+
+  current_camera = camera2D;
 
   enum class EngineState {
     IN_GAME,
@@ -210,9 +220,6 @@ s32 main() {
       level[col][row] = {-1, -1};
     }
   }
-
-  Camera2D camera2D = {};
-  camera2D.zoom = 1;
 
   Vector2 last_pan_position = {};
   Vector2 current_pan_delta = {};
@@ -338,6 +345,17 @@ s32 main() {
 
     if(IsKeyPressed(KEY_FIVE)) {
       engine_state = EngineState::IN_GAME;
+      current_camera = player_camera;
+    }
+
+    if(engine_state != EngineState::IN_GAME) {
+      current_camera = camera2D;
+    }
+
+    if(engine_state == EngineState::IN_GAME) {
+      Vector2 offset = {500, 400};
+      current_camera.target = player_position - offset;
+      // current_camera.offset = screen_center;
     }
 
     if(IsKeyPressed(KEY_Z)) {
@@ -471,7 +489,7 @@ s32 main() {
               }
 
               fclose(file);
-              // log("Level saved");
+              log("Level saved");
             }
 
             if(mouse_down && FloatEquals(cooldown_timer, 0)) {
@@ -790,7 +808,7 @@ s32 main() {
     BeginDrawing();
     Color bg_color = {0x37, 0x41, 0x51};
     ClearBackground(bg_color);
-    BeginMode2D(camera2D);
+    BeginMode2D(current_camera);
 
     switch(engine_state) {
       case EngineState::TILE_SELECTION: {
@@ -901,8 +919,6 @@ s32 main() {
       } break;
     }
 
-    EndMode2D();
-
     if(engine_state != EngineState::IN_GAME) {
       DrawTexturePro(tilemap,
         {selected_tile.x * TILE_SIZE,selected_tile.y * TILE_SIZE, TILE_SIZE, TILE_SIZE},
@@ -999,6 +1015,9 @@ s32 main() {
         // GuiSlider(slider, NULL, TextFormat("friction: %.2fs", friction), &friction, 0, 2);
       } break;
     }
+
+    EndMode2D();
+
 
     u32 font_size = 70;
     u8 spacing = 0;
