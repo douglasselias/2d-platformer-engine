@@ -316,6 +316,9 @@ s32 main() {
 
   bool is_player_facing_right = true;
 
+  u8 heart_animation_index = 0;
+  bool heart_is_growing = true;
+
   while(!WindowShouldClose()) {
     f32 dt = GetFrameTime();
     Vector2 mouse_position = GetMousePosition();
@@ -979,6 +982,27 @@ s32 main() {
         if(frame_counter % (s32)(fps * 0.2) == 0) {
           player_walk_animation_index = Wrap(player_walk_animation_index++, 1, 3);
         }
+
+        Rectangle heart_rect = {(f32)heart_animation_index * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, TILE_SIZE};
+        Rectangle heart_dst_rect = { 4, 10 * TILE_SIZE * level_tile_scale, TILE_SIZE * level_tile_scale, TILE_SIZE * level_tile_scale};
+        DrawTexturePro(tilemap, heart_rect, heart_dst_rect, origin, rotation, color);
+
+        if(frame_counter % (s32)(fps * 0.2) == 0) {
+          if(heart_is_growing) {
+            // heart_animation_index = Wrap(heart_animation_index++, 0, 3);
+            heart_animation_index++;
+            if(heart_animation_index == 2) heart_is_growing = false;
+          } 
+        }
+
+        if(frame_counter % (s32)(fps * 0.3) == 0) {
+          if(!heart_is_growing) {
+            // heart_animation_index = Wrap(heart_animation_index--, 0, 3);
+            heart_animation_index--;
+            if(heart_animation_index == 0) heart_is_growing = true;
+          }
+        }
+
         frame_counter = Wrap(frame_counter++, 0, fps);
 
         // DrawRectangleLinesEx(ground, 3, GOLD);
