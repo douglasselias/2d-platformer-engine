@@ -10,3 +10,5 @@ A unfinished 2D platformer engine.
 - Camera follows the player
 
 ## Video
+
+https://github.com/user-attachments/assets/c5ed1bf2-50d6-414a-9757-9346f159eb24
