@@ -1,6 +1,6 @@
 # 2D Platformer Engine
 
-A unfinished 2D platformer engine.
+An unfinished 2D platformer engine.
 
 ## Features
 
