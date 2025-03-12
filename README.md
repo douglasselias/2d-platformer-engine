@@ -1,16 +1,12 @@
-# raylib-template
+# 2D Platformer Engine
 
-- Camera follow the player (camera trap)
-- Better physics? (Square collision is not ideal for the player)
-- Background parallax and animations
-- Pause menu
-- I18n
+A unfinished 2D platformer engine.
 
-- Full world level editor
-- Collectables and animations
-- Enemies and animations
-- Game Over condition and animation?
-- Save file
-- SFX and BMG
-- Juice? (Particles / Screen shake)
-- Game name and Trailer
+## Features
+
+- Tile placement
+- Static object placement (Ground/Wall/Ceiling collision)
+- Character movement + Coyote time + Jump Buffering + A broken variable jump height
+- Camera follows the player
+
+## Video
