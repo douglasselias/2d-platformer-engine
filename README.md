@@ -11,8 +11,8 @@ An unfinished 2D platformer engine.
 
 ## Code Features
 
-- Assets embedding into the binary
-- English and Chinese character deduplication for font atlas
+- [Assets embedding into the binary](https://github.com/douglasselias/2d-platformer-engine/blob/main/main.cpp#L62)
+- [English and Chinese character deduplication for font atlas](https://github.com/douglasselias/2d-platformer-engine/blob/main/src/text.cpp)
 
 ## Video
 
